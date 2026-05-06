@@ -333,5 +333,65 @@ router.get('/validate-scores', authMiddleware, requireAdmin, async (req, res) =>
     }
 });
 
+// ── Tournament reset (admin only) ─────────────────────────────────────────────
+// POST /api/admin/reset-tournament
+// Borra todas las apuestas, planillas, ranking y resultados de partidos.
+// Conserva users y la estructura de matches/tournaments.
+router.post('/reset-tournament', authMiddleware, requireAdmin, async (req, res) => {
+    try {
+        console.log('[reset-tournament] Iniciando reset completo por:', req.user.userId);
+
+        // Tablas con FK hacia planillas/matchdays — borrar en orden correcto
+        const steps = [
+            { table: 'scores_by_matchday', sql: 'DELETE FROM scores_by_matchday' },
+            { table: 'matchday_reactions',  sql: 'DELETE FROM matchday_reactions' },
+            { table: 'matchdays',           sql: 'DELETE FROM matchdays' },
+            { table: 'scores',              sql: 'DELETE FROM scores' },
+            { table: 'bets',                sql: 'DELETE FROM bets' },
+            { table: 'ranking',             sql: 'DELETE FROM ranking' },
+            { table: 'planillas',           sql: 'DELETE FROM planillas' },
+            { table: 'notifications',       sql: `DELETE FROM notifications` },
+        ];
+
+        const counts = {};
+        for (const step of steps) {
+            try {
+                const r = await db.query(step.sql);
+                counts[step.table] = r.rowCount;
+                console.log(`[reset-tournament] ${step.table}: ${r.rowCount} filas eliminadas`);
+            } catch (e) {
+                // La tabla puede no existir en algunos entornos — ignorar
+                console.warn(`[reset-tournament] ${step.table} skip:`, e.message);
+                counts[step.table] = 0;
+            }
+        }
+
+        // Resetear resultados de partidos
+        const matchReset = await db.query(`
+            UPDATE matches
+            SET resultado_local = NULL,
+                resultado_visitante = NULL,
+                estado = 'scheduled',
+                finished = false
+            WHERE estado != 'cancelled'
+        `);
+        counts['matches_reset'] = matchReset.rowCount;
+        console.log(`[reset-tournament] matches reset: ${matchReset.rowCount}`);
+
+        // Limpiar config de ganadores
+        const configReset = await db.query(`
+            DELETE FROM config WHERE key IN ('ganador_fecha', 'ganadores_fechas')
+        `);
+        counts['config_ganadores'] = configReset.rowCount;
+        console.log(`[reset-tournament] config ganadores: ${configReset.rowCount}`);
+
+        console.log('[reset-tournament] Reset completado:', counts);
+        res.json({ success: true, data: counts });
+    } catch (error) {
+        console.error('[reset-tournament] Error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;
 module.exports.sendWeeklyEmailBatch = sendWeeklyEmailBatch;
