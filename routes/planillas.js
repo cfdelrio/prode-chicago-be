@@ -77,6 +77,13 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
     try {
         await ensurePlanillaTournamentsTable();
         const { tournament_id } = req.body;
+        if (req.user.rol !== 'admin') {
+            const cutoffResult = await connection_1.db.query("SELECT MIN(time_cutoff) as cutoff FROM matches WHERE estado != 'cancelled'");
+            const cutoff = cutoffResult.rows[0]?.cutoff;
+            if (cutoff && new Date() > new Date(cutoff)) {
+                return res.status(400).json({ success: false, error: 'El cierre del torneo ha pasado. No es posible crear nuevas planillas.' });
+            }
+        }
         const countResult = await connection_1.db.query('SELECT COUNT(*) FROM planillas WHERE user_id = $1', [req.user.userId]);
         const nombre_planilla = `Planilla ${parseInt(countResult.rows[0].count) + 1}`;
         const result = await connection_1.db.query(`INSERT INTO planillas (user_id, nombre_planilla)
