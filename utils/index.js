@@ -15,8 +15,8 @@ const comparePassword = async (password, hash) => {
     return bcryptjs_1.default.compare(password, hash);
 };
 exports.comparePassword = comparePassword;
-const generateToken = (payload) => {
-    return jsonwebtoken_1.default.sign(payload, config_1.config.jwt.secret, { expiresIn: '15m' });
+const generateToken = (payload, expiresIn = '15m') => {
+    return jsonwebtoken_1.default.sign(payload, config_1.config.jwt.secret, { expiresIn });
 };
 exports.generateToken = generateToken;
 const generateRefreshToken = (payload) => {
