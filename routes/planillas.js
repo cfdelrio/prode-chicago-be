@@ -4,7 +4,75 @@ const express_1 = require("express");
 const connection_1 = require("../db/connection");
 const auth_1 = require("../middleware/auth");
 const validation_1 = require("../middleware/validation");
+const { sendEmail } = require('../services/email');
 const router = (0, express_1.Router)();
+
+async function sendPlanillaConfirmationEmail(planillaId) {
+    try {
+        const userRes = await connection_1.db.query(
+            `SELECT u.email, u.nombre, p.nombre_planilla
+             FROM planillas p JOIN users u ON p.user_id = u.id
+             WHERE p.id = $1`,
+            [planillaId]
+        );
+        if (!userRes.rows.length) return;
+        const { email, nombre, nombre_planilla } = userRes.rows[0];
+
+        const betsRes = await connection_1.db.query(
+            `SELECT m.equipo_local, m.equipo_visitante, m.grupo, m.jornada,
+                    b.goles_local, b.goles_visitante
+             FROM bets b
+             JOIN matches m ON b.match_id = m.id
+             WHERE b.planilla_id = $1
+             ORDER BY m.grupo, m.jornada, m.fecha`,
+            [planillaId]
+        );
+
+        const rows = betsRes.rows.map(r => `
+      <tr>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">${r.grupo || ''}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">${r.equipo_local}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:bold">${r.goles_local} - ${r.goles_visitante}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">${r.equipo_visitante}</td>
+      </tr>`).join('');
+
+        const html = `
+      <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;background:#f8fafc">
+        <div style="background:#001A4B;padding:28px 24px;border-radius:12px 12px 0 0;text-align:center">
+          <h1 style="color:#fff;margin:0;font-size:1.4rem">⚽ Planilla Confirmada</h1>
+          <p style="color:rgba(255,255,255,0.7);margin:8px 0 0;font-size:0.9rem">${nombre_planilla}</p>
+        </div>
+        <div style="background:#fff;padding:24px;border-radius:0 0 12px 12px">
+          <p style="color:#374151">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#374151">Tu planilla <strong>${nombre_planilla}</strong> fue cerrada correctamente. A continuación encontrás todos tus pronósticos:</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:0.88rem">
+            <thead>
+              <tr style="background:#001A4B;color:#fff">
+                <th style="padding:8px 10px;text-align:left">Grupo</th>
+                <th style="padding:8px 10px;text-align:left">Local</th>
+                <th style="padding:8px 10px;text-align:center">Pronóstico</th>
+                <th style="padding:8px 10px;text-align:left">Visitante</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <p style="color:#6b7280;font-size:0.82rem">Guardá este email como respaldo de tus pronósticos.</p>
+          <p style="color:#6b7280;font-size:0.82rem">¡Buena suerte! 🏆</p>
+        </div>
+        <p style="text-align:center;color:#9ca3af;font-size:0.75rem;padding:16px">
+          PRODE Caballito · <a href="https://prodecaballito.com" style="color:#0042A5">prodecaballito.com</a>
+        </p>
+      </div>`;
+
+        await sendEmail({
+            to: email,
+            subject: `✅ Tu planilla "${nombre_planilla}" fue cerrada — PRODE Caballito`,
+            html,
+        });
+    } catch (err) {
+        console.error('sendPlanillaConfirmationEmail error:', err);
+    }
+}
 
 // ── planilla_tournaments: tabla N:N planilla ↔ torneo ─────────────────────────
 let _ptTableEnsured = false;
@@ -156,6 +224,7 @@ router.put('/:id/lock', auth_1.authMiddleware, validation_1.uuidParam, async (re
             });
         }
         const result = await connection_1.db.query('UPDATE planillas SET precio_pagado = true WHERE id = $1 RETURNING *', [id]);
+        sendPlanillaConfirmationEmail(id);
         res.json({ success: true, data: result.rows[0] });
     }
     catch (error) {
@@ -226,13 +295,18 @@ router.put('/admin/:id', auth_1.authMiddleware, auth_1.requireAdmin, async (req,
     try {
         const { id } = req.params;
         const { nombre_planilla, precio_pagado } = req.body;
-        const result = await connection_1.db.query(`UPDATE planillas SET 
+        const prev = await connection_1.db.query('SELECT precio_pagado FROM planillas WHERE id = $1', [id]);
+        const wasPaid = prev.rows[0]?.precio_pagado;
+        const result = await connection_1.db.query(`UPDATE planillas SET
         nombre_planilla = COALESCE($1, nombre_planilla),
         precio_pagado = COALESCE($2, precio_pagado)
        WHERE id = $3
        RETURNING *`, [nombre_planilla, precio_pagado, id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Planilla no encontrada' });
+        }
+        if (!wasPaid && precio_pagado === true) {
+            sendPlanillaConfirmationEmail(id);
         }
         res.json({ success: true, data: result.rows[0] });
     }
