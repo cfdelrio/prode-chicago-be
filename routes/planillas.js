@@ -74,6 +74,52 @@ async function sendPlanillaConfirmationEmail(planillaId) {
     }
 }
 
+async function autoClosePlanillasAtCutoff() {
+    try {
+        const cutoffResult = await connection_1.db.query(
+            "SELECT MIN(time_cutoff) as cutoff FROM matches WHERE estado != 'cancelled'"
+        );
+        const cutoff = cutoffResult.rows[0]?.cutoff;
+        if (!cutoff || new Date() <= new Date(cutoff)) return;
+
+        const planillasResult = await connection_1.db.query(
+            `SELECT DISTINCT p.id, p.user_id FROM planillas p
+             WHERE p.precio_pagado = false`
+        );
+
+        for (const planilla of planillasResult.rows) {
+            await connection_1.db.query(
+                'UPDATE planillas SET precio_pagado = true WHERE id = $1',
+                [planilla.id]
+            );
+
+            await connection_1.db.query(
+                `DELETE FROM bets b
+                 WHERE b.planilla_id = $1
+                   AND EXISTS (
+                     SELECT 1 FROM matches m
+                     WHERE m.id = b.match_id AND m.estado != 'finished'
+                   )`,
+                [planilla.id]
+            );
+
+            sendPlanillaConfirmationEmail(planilla.id);
+
+            await connection_1.db.query(
+                `INSERT INTO audit_log (user_id, action, entity_type, entity_id, new_value)
+                 VALUES ($1, 'auto_close_planilla', 'planillas', $2, $3)`,
+                [planilla.user_id, planilla.id, JSON.stringify({ reason: 'tournament_cutoff' })]
+            );
+        }
+
+        if (planillasResult.rows.length > 0) {
+            console.log(`✅ Auto-cerradas ${planillasResult.rows.length} planillas al cutoff`);
+        }
+    } catch (err) {
+        console.error('autoClosePlanillasAtCutoff error:', err);
+    }
+}
+
 // ── planilla_tournaments: tabla N:N planilla ↔ torneo ─────────────────────────
 let _ptTableEnsured = false;
 async function ensurePlanillaTournamentsTable() {
@@ -326,5 +372,15 @@ router.delete('/admin/:id', auth_1.authMiddleware, auth_1.requireAdmin, async (r
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
+router.post('/admin/auto-close-cutoff', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res) => {
+    try {
+        await autoClosePlanillasAtCutoff();
+        res.json({ success: true, message: 'Planillas auto-cerradas' });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 exports.default = router;
+module.exports.autoClosePlanillasAtCutoff = autoClosePlanillasAtCutoff;
 //# sourceMappingURL=planillas.js.map
