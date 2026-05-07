@@ -393,5 +393,29 @@ router.post('/reset-tournament', authMiddleware, requireAdmin, async (req, res) 
     }
 });
 
+router.get('/stats/whatsapp', authMiddleware, requireAdmin, async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT
+                COUNT(*) as total_users,
+                COUNT(whatsapp_number) FILTER (WHERE whatsapp_number IS NOT NULL AND whatsapp_number != '') as users_with_phone
+            FROM users
+        `);
+        const row = result.rows[0];
+        const percentage = row.total_users > 0 ? ((row.users_with_phone / row.total_users) * 100).toFixed(1) : 0;
+        res.json({
+            success: true,
+            data: {
+                total_users: parseInt(row.total_users),
+                users_with_phone: parseInt(row.users_with_phone),
+                percentage: parseFloat(percentage)
+            }
+        });
+    } catch (error) {
+        console.error('[admin] stats/whatsapp error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;
 module.exports.sendWeeklyEmailBatch = sendWeeklyEmailBatch;
