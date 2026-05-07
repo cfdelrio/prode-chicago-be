@@ -271,6 +271,85 @@ router.post('/resend-code', rateLimit_1.authLimiter, async (req, res) => {
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
+router.post('/forgot-password', rateLimit_1.authLimiter, async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ success: false, error: 'Email es requerido' });
+        }
+        const result = await connection_1.db.query('SELECT id, nombre FROM users WHERE email = $1', [email]);
+        if (result.rows.length === 0) {
+            // Por seguridad, devolvemos success aunque el email no exista
+            return res.json({ success: true, message: 'Si el email existe, recibirás instrucciones de recuperación' });
+        }
+        const user = result.rows[0];
+        const resetToken = (0, utils_1.generateToken)({ userId: user.id, email, rol: 'password-reset' }, '60m');
+        const resetLink = `${process.env.FRONTEND_URL || 'https://prodecaballito.com'}/recuperar-contrasena?token=${resetToken}`;
+        console.log(`📧 Enviando email de recuperación a ${email}`);
+        try {
+            await (0, email_1.sendEmail)({
+                to: email,
+                subject: '🔐 Recupera tu contraseña — PRODE Caballito',
+                html: `
+                    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;background:#f8fafc">
+                        <div style="background:#001A4B;padding:28px 24px;border-radius:12px 12px 0 0;text-align:center">
+                            <h1 style="color:#fff;margin:0;font-size:1.4rem">⚽ Recuperar Contraseña</h1>
+                        </div>
+                        <div style="background:#fff;padding:24px;border-radius:0 0 12px 12px">
+                            <p style="color:#374151">Hola <strong>${user.nombre}</strong>,</p>
+                            <p style="color:#374151">Recibimos una solicitud para recuperar tu contraseña. Si no fuiste vos, podés ignorar este email.</p>
+                            <p style="text-align:center;margin:24px 0">
+                                <a href="${resetLink}" style="display:inline-block;background:#0042A5;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold">
+                                    Recuperar Contraseña
+                                </a>
+                            </p>
+                            <p style="color:#6b7280;font-size:0.82rem">Este link expira en 1 hora.</p>
+                            <p style="color:#6b7280;font-size:0.82rem">Si el botón no funciona, copia este link en tu navegador:<br/><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">${resetLink}</code></p>
+                        </div>
+                        <p style="text-align:center;color:#9ca3af;font-size:0.75rem;padding:16px">
+                            PRODE Caballito · <a href="https://prodecaballito.com" style="color:#0042A5">prodecaballito.com</a>
+                        </p>
+                    </div>
+                `,
+            });
+            console.log(`✅ Email de recuperación enviado a ${email}`);
+        } catch (emailError) {
+            console.error('❌ Error enviando email de recuperación:', emailError);
+        }
+        res.json({ success: true, message: 'Si el email existe, recibirás instrucciones de recuperación' });
+    }
+    catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+router.post('/reset-password', rateLimit_1.authLimiter, async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        if (!token || !password) {
+            return res.status(400).json({ success: false, error: 'Token y contraseña son requeridos' });
+        }
+        if (password.length < 6) {
+            return res.status(400).json({ success: false, error: 'La contraseña debe tener al menos 6 caracteres' });
+        }
+        let payload;
+        try {
+            payload = (0, utils_1.verifyToken)(token);
+        } catch (e) {
+            return res.status(400).json({ success: false, error: 'Token inválido o expirado' });
+        }
+        if (payload.rol !== 'password-reset') {
+            return res.status(400).json({ success: false, error: 'Token inválido' });
+        }
+        const hash_pass = await (0, utils_1.hashPassword)(password);
+        await connection_1.db.query('UPDATE users SET hash_pass = $1 WHERE id = $2', [hash_pass, payload.userId]);
+        res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+    }
+    catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
 router.post('/complete-registration', rateLimit_1.authLimiter, async (req, res) => {
     try {
         const { userId, tema_equipo, telefono, whatsapp_number } = req.body;
