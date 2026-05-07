@@ -324,5 +324,29 @@ router.get('/admin/users-with-planillas', auth_1.authMiddleware, auth_1.requireA
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
+router.delete('/:id', auth_1.authMiddleware, auth_1.requireAdmin, validation_1.uuidParam, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userRes = await connection_1.db.query('SELECT id, nombre, email FROM users WHERE id = $1', [id]);
+        if (userRes.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+        const user = userRes.rows[0];
+        console.log(`[DELETE USER] Starting cascade delete for user: ${user.email} (${id})`);
+        await connection_1.db.query(`INSERT INTO audit_log (user_id, action, entity_type, entity_id, old_value, ip_address, user_agent)
+         VALUES ($1, 'delete_user', 'users', $2, $3, $4, $5)`, [req.user.userId, id, JSON.stringify(user), req.ip, req.headers['user-agent']]);
+        const deleteRes = await connection_1.db.query('DELETE FROM users WHERE id = $1', [id]);
+        console.log(`[DELETE USER] Cascade complete: ${user.email} deleted with all related records`);
+        res.json({
+            success: true,
+            message: `Usuario ${user.nombre} (${user.email}) y todos sus datos han sido eliminados`,
+            deleted_user: user
+        });
+    }
+    catch (error) {
+        console.error('[DELETE USER]', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=users.js.map
