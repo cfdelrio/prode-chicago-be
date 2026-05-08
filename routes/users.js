@@ -99,7 +99,7 @@ router.put('/:id', auth_1.authMiddleware, validation_1.uuidParam, validation_1.u
         // Validar whatsapp_number si se proporciona
         if (whatsapp_number !== undefined && whatsapp_number !== null && whatsapp_number !== '') {
             const clean = whatsapp_number.replace(/\D/g, '');
-            if (clean.length < 7 || clean.length > 15) {
+            if (clean.length < 6 || clean.length > 15) {
                 return res.status(400).json({ success: false, error: 'Número de WhatsApp inválido' });
             }
         }
@@ -113,7 +113,7 @@ router.put('/:id', auth_1.authMiddleware, validation_1.uuidParam, validation_1.u
        RETURNING id, nombre, email, rol, idioma_pref, tema_equipo, foto_url, whatsapp_number, whatsapp_consent`,
             [nombre, idioma_pref, tema_equipo,
              whatsapp_consent !== undefined ? whatsapp_consent : null,
-             whatsapp_number !== undefined ? (whatsapp_number === '' ? null : whatsapp_number.replace(/\D/g, '')) : null,
+             whatsapp_number !== undefined ? (whatsapp_number === '' ? null : whatsapp_number.replace(/\s/g, '')) : null,
              id]);
         res.json({ success: true, data: result.rows[0] });
     }
