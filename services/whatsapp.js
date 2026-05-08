@@ -20,6 +20,11 @@ const TEMPLATES = {
     // Body: "🏆 ¡{{1}} ganó {{2}}!\nCon {{3}} puntos exactos.\n\n👉 prodecaballito.com/ranking"
     // Variables: { 1: nombre_ganador, 2: nombre_fecha, 3: puntos }
     prode_ganador_fecha: 'HX037ab7e8789f1de1575a26737ff8a233',
+
+    // Body: "📣 Aviso del Prode Caballito\n\n¡Hola {{1}}!\n\n{{2}}\n\n👉 prodecaballito.com"
+    // Variables: { 1: nombre_usuario, 2: mensaje_admin }
+    // Pendiente de aprobación por Meta. Hasta tener el SID real, se lee de env BROADCAST_TEMPLATE_SID.
+    prode_broadcast_aviso: process.env.BROADCAST_TEMPLATE_SID || null,
 };
 
 const sendWhatsApp = async ({ to, body }) => {
