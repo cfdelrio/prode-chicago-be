@@ -1,0 +1,11 @@
+{
+  "name": "prode-backup-lambda",
+  "version": "1.0.0",
+  "description": "Lambda que dumpea la DB de Prode a S3",
+  "type": "module",
+  "main": "index.mjs",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.658.1",
+    "pg": "^8.13.0"
+  }
+}

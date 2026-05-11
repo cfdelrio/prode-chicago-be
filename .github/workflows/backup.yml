@@ -1,0 +1,132 @@
+name: Backup diario
+
+on:
+  schedule:
+    # 04:00 UTC = 01:00 ART (hora baja de tráfico)
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      skip_db:
+        description: 'Saltar backup de DB'
+        required: false
+        type: boolean
+        default: false
+      skip_lambda:
+        description: 'Saltar backup del código Lambda'
+        required: false
+        type: boolean
+        default: false
+      skip_frontend:
+        description: 'Saltar backup del frontend S3'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  BACKUP_BUCKET: prode-backups
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Configure AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+          aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
+          aws configure set region "$AWS_REGION"
+
+      - name: Compute date prefix
+        id: d
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      # ---------- 1) DB dump ----------
+      - name: Backup DB (invocar Lambda prode-backup)
+        if: ${{ !inputs.skip_db }}
+        run: |
+          DATE="${{ steps.d.outputs.date }}"
+          KEY="db/$DATE/prode-$(date -u +%Y-%m-%dT%H-%M-%S).sql.gz"
+          echo "Disparando Lambda prode-backup → s3://$BACKUP_BUCKET/$KEY"
+
+          aws lambda invoke \
+            --function-name prode-backup \
+            --cli-binary-format raw-in-base64-out \
+            --payload "$(printf '{"key":"%s"}' "$KEY" | base64 -w0)" \
+            --region "$AWS_REGION" \
+            /tmp/lambda-out.json >/tmp/invoke-meta.json
+
+          STATUS=$(jq -r '.StatusCode' /tmp/invoke-meta.json)
+          FUNC_ERROR=$(jq -r '.FunctionError // empty' /tmp/invoke-meta.json)
+          if [[ "$STATUS" != "200" || -n "$FUNC_ERROR" ]]; then
+            echo "::error::Lambda prode-backup falló (status=$STATUS error=$FUNC_ERROR)"
+            cat /tmp/lambda-out.json
+            exit 1
+          fi
+          echo "Resultado:"
+          cat /tmp/lambda-out.json
+
+      # ---------- 2) Código de prode-api ----------
+      - name: Backup código Lambda prode-api
+        if: ${{ !inputs.skip_lambda }}
+        run: |
+          DATE="${{ steps.d.outputs.date }}"
+          URL=$(aws lambda get-function \
+            --function-name prode-api \
+            --region "$AWS_REGION" \
+            --query 'Code.Location' --output text)
+
+          curl -fsSL "$URL" -o /tmp/prode-api.zip
+          aws s3 cp /tmp/prode-api.zip \
+            "s3://$BACKUP_BUCKET/lambda/$DATE/prode-api.zip" \
+            --region "$AWS_REGION"
+
+          # Config (env vars, VPC, role, etc.)
+          aws lambda get-function-configuration \
+            --function-name prode-api \
+            --region "$AWS_REGION" > /tmp/prode-api-config.json
+          aws s3 cp /tmp/prode-api-config.json \
+            "s3://$BACKUP_BUCKET/lambda/$DATE/prode-api-config.json" \
+            --region "$AWS_REGION"
+
+      # ---------- 3) Frontend S3 ----------
+      - name: Backup frontend (S3 prodecaballito-fe)
+        if: ${{ !inputs.skip_frontend }}
+        run: |
+          DATE="${{ steps.d.outputs.date }}"
+          aws s3 sync \
+            s3://prodecaballito-fe/ \
+            "s3://$BACKUP_BUCKET/frontend/$DATE/" \
+            --region "$AWS_REGION" \
+            --no-progress
+
+      # ---------- 4) Manifest ----------
+      - name: Escribir manifest
+        run: |
+          DATE="${{ steps.d.outputs.date }}"
+          jq -n \
+            --arg date "$DATE" \
+            --arg run "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            '{date:$date, run_id:$run, sha:$sha, generated_at: (now|todate)}' \
+            > /tmp/manifest.json
+          aws s3 cp /tmp/manifest.json \
+            "s3://$BACKUP_BUCKET/manifests/$DATE.json" \
+            --region "$AWS_REGION"
+
+      - name: Resumen
+        if: always()
+        run: |
+          DATE="${{ steps.d.outputs.date }}"
+          echo "## Backup $DATE" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          aws s3 ls "s3://$BACKUP_BUCKET/" --recursive \
+            | grep "$DATE" \
+            | awk '{printf "- `%s` — %s bytes\n", $4, $3}' \
+            >> "$GITHUB_STEP_SUMMARY" || true
