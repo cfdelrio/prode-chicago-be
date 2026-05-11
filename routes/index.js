@@ -40,4 +40,6 @@ var push_1 = require("./push");
 Object.defineProperty(exports, "pushRoutes", { enumerable: true, get: function () { return __importDefault(push_1).default; } });
 var admin_1 = require("./admin");
 Object.defineProperty(exports, "adminRoutes", { enumerable: true, get: function () { return admin_1; } });
+var backups_1 = require("./backups");
+Object.defineProperty(exports, "backupsRoutes", { enumerable: true, get: function () { return backups_1; } });
 //# sourceMappingURL=index.js.map

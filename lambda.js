@@ -43,6 +43,7 @@ app.use('/api/matchdays', routes_1.matchdaysRoutes);
 app.use('/api/imagemail', routes_1.imagemailRoutes);
 app.use('/api/push', routes_1.pushRoutes);
 app.use('/api/admin', routes_1.adminRoutes);
+app.use('/api/admin/backups', routes_1.backupsRoutes);
 app.post('/api/internal/broadcast-whatsapp', authMiddleware, requireAdmin, async (req, res) => {
     try {
         const { message } = req.body;
@@ -145,6 +146,22 @@ const handler = async (event, context) => {
         const matchday = { id: '00000000-0000-0000-0000-000000000001', name: event.matchdayName || 'Fecha de Prueba', tournament_id: null };
         await processWinnerNotification(winner, matchday, user.email, [user.email]);
         return { statusCode: 200, body: JSON.stringify({ success: true }) };
+    }
+
+    // EventBridge daily backup trigger
+    // Rule cron: 0 7 * * ? * (07:00 UTC = 04:00 Argentina)
+    if (event.source === 'prode.backup-daily') {
+        const backupService = require('./services/backupService');
+        const [dump, snapshot] = await Promise.allSettled([
+            backupService.exportDatabase({ trigger: 'scheduled' }),
+            backupService.createSnapshot({ trigger: 'scheduled' }),
+        ]);
+        const result = {
+            dump: dump.status === 'fulfilled' ? dump.value : { error: dump.reason?.message },
+            snapshot: snapshot.status === 'fulfilled' ? snapshot.value : { error: snapshot.reason?.message },
+        };
+        console.log('[prode.backup-daily] result:', JSON.stringify(result));
+        return { statusCode: 200, body: JSON.stringify(result) };
     }
 
     // EventBridge weekly summary trigger (nuevo diseño aprobado)
