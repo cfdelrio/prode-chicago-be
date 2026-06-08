@@ -120,9 +120,10 @@ router.post('/:otherUserId', auth_1.authMiddleware, validation_1.messageValidati
       INSERT INTO notifications (user_id, type, payload, status, sent_at)
       VALUES ($1, 'message', $2, 'sent', NOW())
     `, [otherUserId, JSON.stringify({
+                title: `💬 ${senderName}`,
+                body: content.substring(0, 50),
                 sender_id: currentUserId,
-                sender_name: senderName,
-                preview: content.substring(0, 50)
+                sender_name: senderName
             })]);
         res.status(201).json({ success: true, data: result.rows[0] });
     }
@@ -189,9 +190,10 @@ router.post('/broadcast', auth_1.authMiddleware, async (req, res) => {
         INSERT INTO notifications (user_id, type, payload, status, sent_at)
         VALUES ($1, 'message', $2, 'sent', NOW())
       `, [targetUser.id, JSON.stringify({
+                    title: '💬 Admin PRODE',
+                    body: content.substring(0, 50),
                     sender_id: senderId,
                     sender_name: 'Admin PRODE',
-                    preview: content.substring(0, 50),
                     is_broadcast: true
                 })]);
             sentCount++;

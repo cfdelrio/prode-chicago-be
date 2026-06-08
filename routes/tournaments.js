@@ -64,11 +64,15 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/ranking', async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await connection_1.db.query(`SELECT tr.*, u.nombre AS user_name, u.foto_url AS user_avatar
+        // Ranking por planilla individual (no por usuario).
+        // Si un usuario tiene 2 planillas, aparecen 2 filas separadas.
+        const result = await connection_1.db.query(`SELECT tr.*, u.nombre AS user_name, u.foto_url AS user_avatar,
+              p.nombre_planilla, p.precio_pagado
        FROM tournament_rankings tr
        JOIN users u ON tr.user_id = u.id
+       JOIN planillas p ON tr.planilla_id = p.id
        WHERE tr.tournament_id = $1
-       ORDER BY tr.puntos DESC, tr.total_exactos DESC`, [id]);
+       ORDER BY tr.puntos DESC, tr.total_exactos DESC, tr.total_aciertos DESC`, [id]);
         res.json({
             success: true,
             data: result.rows,

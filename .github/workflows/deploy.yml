@@ -63,18 +63,18 @@ jobs:
       - name: Upload package to S3 and deploy Lambda
         run: |
           # Subir a S3 para evitar el límite de 50MB en uploads directos
-          aws s3 cp /tmp/deploy.zip s3://prode-uploads-cdelrio/lambda/prode-api.zip \
+          aws s3 cp /tmp/deploy.zip s3://prode-chicago-uploads/lambda/prode-chicago-api.zip \
             --region us-east-1
 
           aws lambda update-function-code \
-            --function-name prode-api \
-            --s3-bucket prode-uploads-cdelrio \
-            --s3-key lambda/prode-api.zip \
+            --function-name prode-chicago-api \
+            --s3-bucket prode-chicago-uploads \
+            --s3-key lambda/prode-chicago-api.zip \
             --region us-east-1
 
           # Esperar a que termine de actualizar
           aws lambda wait function-updated \
-            --function-name prode-api \
+            --function-name prode-chicago-api \
             --region us-east-1
 
           echo "✅ Deploy completado"

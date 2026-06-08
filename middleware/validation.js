@@ -121,6 +121,8 @@ exports.adminWeeklyEmailValidation = [
 exports.adminWinnerImageValidation = [
     (0, express_validator_1.body)('image_url').trim().notEmpty().withMessage('image_url requerida').isURL({ require_protocol: true }).withMessage('image_url debe ser una URL válida'),
     (0, express_validator_1.body)('matchday_label').optional().trim().isLength({ max: 100 }).withMessage('matchday_label máximo 100 caracteres'),
+    (0, express_validator_1.body)('user_name').optional().trim().isLength({ max: 200 }).withMessage('user_name máximo 200 caracteres'),
+    (0, express_validator_1.body)('points').optional().isInt({ min: 0, max: 9999 }).withMessage('points debe ser entero 0-9999'),
     exports.validate,
 ];
 exports.adminRecalcMatchdayValidation = [

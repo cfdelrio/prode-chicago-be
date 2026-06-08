@@ -2,9 +2,16 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendRankingUpdateEmail = exports.sendVerificationCode = exports.sendWelcomeEmail = exports.sendEmail = void 0;
 const { db } = require('../db/connection');
-const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_m3NekW1Y_23CkRZqbVhH24yuU4C6XuNYe';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+if (!RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY not configured — email sending disabled');
+}
 const FROM_EMAIL = 'noreply@prodecaballito.com';
 const sendEmail = async ({ to, subject, html }) => {
+    if (!RESEND_API_KEY) {
+        console.warn('[email] Skipping email send — RESEND_API_KEY not configured');
+        return null;
+    }
     const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -22,58 +29,94 @@ const sendEmail = async ({ to, subject, html }) => {
 exports.sendEmail = sendEmail;
 const sendRankingUpdateEmail = async (userEmail, userName, newPosition, previousPosition, points) => {
     const movement = previousPosition ? (previousPosition - newPosition) : 0;
-    let emoji = '';
-    let message = '';
+    let headerEmoji = '';
+    let headerTitle = '';
+    let messageHtml = '';
+    let subject = '';
+    let bgColor = '#FFFFFF';
+
     if (movement > 0) {
-        emoji = '📈';
-        message = `Subiste ${movement} posición${movement > 1 ? 'es' : ''}!`;
+        headerEmoji = '📈';
+        headerTitle = '¡SUBISTE!';
+        messageHtml = `Avanzaste <strong>${movement} posición${movement > 1 ? 'es' : ''}</strong> en el ranking. De #${previousPosition} a #${newPosition}.`;
+        subject = `📈 Subiste ${movement} lugar${movement > 1 ? 'es' : ''} — ahora sos #${newPosition}`;
+        bgColor = '#ECFDF5';
+    } else if (movement < 0) {
+        headerEmoji = '📉';
+        headerTitle = 'BAJASTE EN EL RANKING';
+        messageHtml = `Bajaste <strong>${Math.abs(movement)} posición${Math.abs(movement) > 1 ? 'es' : ''}</strong>. Ahora estás #${newPosition}. El próximo partido, tu revancha.`;
+        subject = `📉 Bajaste ${Math.abs(movement)} lugar${Math.abs(movement) > 1 ? 'es' : ''} — estás #${newPosition}`;
+        bgColor = '#FEF2F2';
+    } else if (previousPosition === null) {
+        headerEmoji = '⭐';
+        headerTitle = '¡BIENVENIDO AL RANKING!';
+        messageHtml = `Ya estás #${newPosition}. El podio te espera.`;
+        subject = `⭐ ¡Entraste al ranking! Posición #${newPosition}`;
+        bgColor = '#FFFBEB';
+    } else {
+        headerEmoji = '👀';
+        headerTitle = 'MANTUVISTE TU POSICIÓN';
+        messageHtml = `Seguís siendo <strong>#${newPosition}</strong> con ${points} puntos. La próxima fecha puede cambiar todo.`;
+        subject = `👀 Mantuviste #${newPosition} — ${points} pts`;
+        bgColor = '#FFFFFF';
     }
-    else if (movement < 0) {
-        emoji = '📉';
-        message = `Bajaste ${Math.abs(movement)} posición${Math.abs(movement) > 1 ? 'es' : ''}`;
-    }
-    else if (previousPosition === null) {
-        emoji = '🎉';
-        message = '¡Bienvenido al ranking!';
-    }
-    else {
-        emoji = '➖';
-        message = 'Mantuviste tu posición';
-    }
-    const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; }
-        h1 { color: #1a56db; }
-        .ranking { background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; }
-        .position { font-size: 48px; font-weight: bold; color: #1a56db; }
-        .points { color: #6b7280; }
-        .footer { text-align: center; color: #9ca3af; margin-top: 20px; font-size: 12px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>🏆 PRODE Caballito</h1>
-        <p>Hola ${userName},</p>
-        <p>${emoji} ${message}</p>
-        <div class="ranking">
-          <div class="position">#${newPosition}</div>
-          <div class="points">${points} puntos</div>
-        </div>
-        <p>Ver todos los resultados en: <a href="https://d2vjb37mnj30m1.cloudfront.net/ranking">PRODE Caballito</a></p>
-        <div class="footer">
-          © 2026 PRODE Caballito
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <!-- Header -->
+      <tr><td style="background-color:#001A4B;padding:32px 32px 24px;text-align:center;">
+        <p style="margin:0;font-size:48px;line-height:1;">${headerEmoji}</p>
+        <p style="margin:10px 0 4px;font-size:22px;font-weight:900;color:#FFCC00;font-family:Arial,sans-serif;letter-spacing:1px;">${headerTitle}</p>
+        <p style="margin:0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">PRODE Caballito</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="background-color:${bgColor};padding:32px 32px 28px;">
+        <p style="margin:0 0 8px;font-size:18px;font-weight:900;color:#001A4B;font-family:Arial,sans-serif;">Hola, ${userName}! 👋</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#374151;font-family:Arial,sans-serif;line-height:1.6;">
+          ${messageHtml}
+        </p>
+        <!-- Ranking card -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
+          <tr>
+            <td width="50%" style="padding:4px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#EFF6FF;border-radius:12px;padding:16px;text-align:center;">
+                <tr><td>
+                  <p style="margin:0;font-size:11px;color:#3B82F6;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:bold;">Tu posición</p>
+                  <p style="margin:4px 0 0;font-size:36px;font-weight:900;color:#1D4ED8;font-family:Arial,sans-serif;">#${newPosition}</p>
+                </td></tr>
+              </table>
+            </td>
+            <td width="50%" style="padding:4px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F0FDF4;border-radius:12px;padding:16px;text-align:center;">
+                <tr><td>
+                  <p style="margin:0;font-size:11px;color:#16A34A;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:bold;">Tus puntos</p>
+                  <p style="margin:4px 0 0;font-size:36px;font-weight:900;color:#15803D;font-family:Arial,sans-serif;">${points}</p>
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td align="center">
+            <a href="https://prodecaballito.com/ranking" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver ranking completo →</a>
+          </td></tr>
+        </table>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">prodecaballito.com</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
     await (0, exports.sendEmail)({
         to: userEmail,
-        subject: `🏆 PRODE Caballito - Posición #${newPosition}`,
+        subject,
         html,
     });
 };
@@ -261,6 +304,54 @@ const sendWelcomeEmail = async (email, nombre) => {
           </td>
         </tr>
       </table>
+    </td>
+  </tr>
+
+  <!-- ── BLOQUE 5b: MINI INSTRUCTIVO ── -->
+  <tr>
+    <td style="background:#F0F4FF;padding:24px 20px;border-top:2px solid #E0E8FF;">
+      <div style="color:#1a2b4a;font-size:13px;font-weight:900;font-family:'Arial Black',Arial,sans-serif;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">📋 ¿CÓMO CARGAR TU PLANILLA?</div>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;">
+        <tr>
+          <td width="33%" valign="top" align="center" style="padding-right:6px;">
+            <div style="width:32px;height:32px;background:#F47C00;border-radius:50%;text-align:center;line-height:32px;font-size:15px;color:#fff;font-weight:bold;font-family:Arial;margin:0 auto 6px;">1</div>
+            <div style="color:#1a2b4a;font-size:10px;font-weight:700;font-family:Arial,sans-serif;text-transform:uppercase;margin-bottom:3px;">ENTRÁ A /APUESTAS</div>
+            <div style="color:#555;font-size:10px;font-family:Arial,sans-serif;line-height:1.4;">Seleccioná el torneo desde el menú principal.</div>
+          </td>
+          <td width="33%" valign="top" align="center" style="padding:0 3px;">
+            <div style="width:32px;height:32px;background:#F47C00;border-radius:50%;text-align:center;line-height:32px;font-size:15px;color:#fff;font-weight:bold;font-family:Arial;margin:0 auto 6px;">2</div>
+            <div style="color:#1a2b4a;font-size:10px;font-weight:700;font-family:Arial,sans-serif;text-transform:uppercase;margin-bottom:3px;">INGRESÁ EL MARCADOR</div>
+            <div style="color:#555;font-size:10px;font-family:Arial,sans-serif;line-height:1.4;">Escribí goles local y visitante para cada partido.</div>
+          </td>
+          <td width="33%" valign="top" align="center" style="padding-left:6px;">
+            <div style="width:32px;height:32px;background:#F47C00;border-radius:50%;text-align:center;line-height:32px;font-size:15px;color:#fff;font-weight:bold;font-family:Arial;margin:0 auto 6px;">3</div>
+            <div style="color:#1a2b4a;font-size:10px;font-weight:700;font-family:Arial,sans-serif;text-transform:uppercase;margin-bottom:3px;">¡GUARDÁ Y LISTO!</div>
+            <div style="color:#555;font-size:10px;font-family:Arial,sans-serif;line-height:1.4;">Tus pronósticos quedan guardados automáticamente.</div>
+          </td>
+        </tr>
+      </table>
+      <div style="color:#1a2b4a;font-size:12px;font-weight:900;font-family:'Arial Black',Arial,sans-serif;text-transform:uppercase;margin-bottom:8px;">🎯 SISTEMA DE PUNTOS</div>
+      <table width="100%" cellpadding="0" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#D1DBF0;border-radius:8px;overflow:hidden;margin-bottom:12px;">
+        <tr style="background:#1a2b4a;">
+          <th style="padding:8px 10px;font-size:11px;color:#fff;text-align:left;font-family:Arial,sans-serif;">RESULTADO</th>
+          <th style="padding:8px 10px;font-size:11px;color:#FFB700;text-align:center;font-family:Arial,sans-serif;">PTS</th>
+        </tr>
+        <tr style="background:#fff;">
+          <td style="padding:7px 10px;font-size:11px;color:#333;font-family:Arial,sans-serif;">Marcador exacto (ej: 2-1 = 2-1)</td>
+          <td style="padding:7px 10px;font-size:13px;font-weight:bold;text-align:center;color:#27AE60;font-family:Arial,sans-serif;">4</td>
+        </tr>
+        <tr style="background:#F9FAFB;">
+          <td style="padding:7px 10px;font-size:11px;color:#333;font-family:Arial,sans-serif;">Resultado correcto (ej: local gana)</td>
+          <td style="padding:7px 10px;font-size:13px;font-weight:bold;text-align:center;color:#2980B9;font-family:Arial,sans-serif;">3</td>
+        </tr>
+        <tr style="background:#fff;">
+          <td style="padding:7px 10px;font-size:11px;color:#333;font-family:Arial,sans-serif;">No acertaste nada</td>
+          <td style="padding:7px 10px;font-size:13px;font-weight:bold;text-align:center;color:#999;font-family:Arial,sans-serif;">0</td>
+        </tr>
+      </table>
+      <div style="background:#FFF3CD;border:1px solid #FFD879;border-radius:6px;padding:10px 12px;">
+        <span style="color:#856404;font-size:11px;font-family:Arial,sans-serif;">⏰ <strong>¿Cuándo cierra?</strong> Las apuestas cierran 5 minutos antes del primer partido del torneo. ¡No te quedes sin cargar!</span>
+      </div>
     </td>
   </tr>
 
@@ -771,6 +862,18 @@ const sendWeeklyEmail = async (email, {
     const tightMatchHtml = buildTightMatchSection(tightMatch);
     const upcomingHtml = buildUpcomingSection(upcomingMatches, appUrl);
 
+    // Determinar segmento para subject dinámico
+    let emailSubject = `⚽ Tu resumen semanal — PRODE Caballito`;
+    if (userPosition === 1) {
+      emailSubject = `👑 Seguís primero, ${userName}. Esta semana podés agrandar la ventaja.`;
+    } else if (userPosition <= 3) {
+      emailSubject = `🏆 Estás en el podio, ${userName}. Esta semana mantené la posición.`;
+    } else if (userPosition <= 10) {
+      emailSubject = `📈 En la zona caliente, ${userName}. Esta semana podés hacer más.`;
+    } else {
+      emailSubject = `⚽ Esta semana tu prode puede cambiar todo, ${userName}.`;
+    }
+
     const pendingBadge = pendingBets > 0
         ? `<table cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
             <tr>
@@ -899,9 +1002,338 @@ const sendWeeklyEmail = async (email, {
 
     await (0, exports.sendEmail)({
         to: email,
-        subject: `⚽ Tu resumen semanal — PRODE Caballito`,
+        subject: emailSubject,
         html,
     });
 };
 exports.sendWeeklyEmail = sendWeeklyEmail;
+
+// ── Post-matchday summary email ──────────────────────────────────────────────
+
+const sendPostMatchdayEmail = async ({ userEmail, userName, matchdayName, points, rankInMatchday, globalPosition, topName, topPoints, totalPlanillas }) => {
+    const isWinner = rankInMatchday === 1;
+    const isPodio = rankInMatchday >= 2 && rankInMatchday <= 3;
+    const posEmoji = rankInMatchday === 1 ? '🥇' : rankInMatchday === 2 ? '🥈' : rankInMatchday === 3 ? '🥉' : `#${rankInMatchday}`;
+
+    let headerEmoji = '🏁';
+    let headerTitle = `${matchdayName} — CERRADA`;
+    let titlePrefix = `🏁 ${matchdayName} cerrada`;
+    let introText = `Así quedaron tus resultados en <strong>${matchdayName}</strong>:`;
+    let bodyColor = '#FFFFFF';
+
+    if (isWinner) {
+      headerEmoji = '👑';
+      headerTitle = `¡GANASTE ${matchdayName.toUpperCase()}!`;
+      titlePrefix = `👑 ¡Ganaste ${matchdayName}!`;
+      introText = `<strong>${points} puntos</strong> — el crack de la fecha. El PRODE habla de vos.`;
+      bodyColor = '#FFFBEB';
+    } else if (isPodio) {
+      headerEmoji = '🏆';
+      headerTitle = `TOP 3 EN ${matchdayName.toUpperCase()}`;
+      titlePrefix = `🏆 Terminaste #${rankInMatchday} en ${matchdayName}`;
+      introText = `<strong>${points} puntos</strong> te pusieron #${rankInMatchday}. El ganador hizo ${topPoints} pts.`;
+      bodyColor = '#F0FDF4';
+    }
+
+    const globalStr = globalPosition != null ? `Estás #${globalPosition} en el ranking general.` : '';
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <!-- Header -->
+      <tr><td style="background-color:#001A4B;padding:32px 32px 24px;text-align:center;">
+        <p style="margin:0;font-size:40px;line-height:1;">${headerEmoji}</p>
+        <p style="margin:10px 0 4px;font-size:20px;font-weight:900;color:#FFCC00;font-family:Arial,sans-serif;letter-spacing:1px;">${headerTitle}</p>
+        <p style="margin:0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">PRODE Caballito</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="background-color:${bodyColor};padding:32px 32px 28px;">
+        <p style="margin:0 0 8px;font-size:18px;font-weight:900;color:#001A4B;font-family:Arial,sans-serif;">¡Hola, ${userName}! 👋</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#374151;font-family:Arial,sans-serif;line-height:1.6;">
+          ${introText}
+        </p>
+        <!-- Score card -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
+          <tr>
+            <td width="50%" style="padding:4px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#EFF6FF;border-radius:12px;padding:16px;text-align:center;">
+                <tr><td>
+                  <p style="margin:0;font-size:11px;color:#3B82F6;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:bold;">Tus puntos</p>
+                  <p style="margin:4px 0 0;font-size:36px;font-weight:900;color:#1D4ED8;font-family:Arial,sans-serif;">${points}</p>
+                </td></tr>
+              </table>
+            </td>
+            <td width="50%" style="padding:4px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F0FDF4;border-radius:12px;padding:16px;text-align:center;">
+                <tr><td>
+                  <p style="margin:0;font-size:11px;color:#16A34A;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:bold;">Tu posición en la fecha</p>
+                  <p style="margin:4px 0 0;font-size:36px;font-weight:900;color:#15803D;font-family:Arial,sans-serif;">${posEmoji}</p>
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+        ${globalStr ? `<p style="margin:0 0 12px;font-size:14px;color:#6B7280;font-family:Arial,sans-serif;text-align:center;">${globalStr}</p>` : ''}
+        <!-- Top performer -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0 24px;background:#FFF7ED;border-radius:12px;padding:16px;">
+          <tr><td style="text-align:center;">
+            <p style="margin:0;font-size:12px;color:#EA580C;font-family:Arial,sans-serif;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">Top de la fecha</p>
+            <p style="margin:6px 0 0;font-size:16px;font-weight:900;color:#9A3412;font-family:Arial,sans-serif;">🏆 ${topName} — ${topPoints} pts</p>
+          </td></tr>
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td align="center">
+            <a href="https://prodecaballito.com/ranking" style="display:inline-block;background-color:#0042A5;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver el ranking completo →</a>
+          </td></tr>
+        </table>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">prodecaballito.com</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+    const subject = isWinner
+      ? `👑 ${userName}, ganaste ${matchdayName} con ${points} pts`
+      : isPodio
+        ? `🏆 Terminaste #${rankInMatchday} en ${matchdayName} — ${points} pts`
+        : `🏁 ${matchdayName} cerrada — ${points} pts | #${rankInMatchday} de ${totalPlanillas}`;
+
+    await sendEmail({
+        to: userEmail,
+        subject,
+        html,
+    });
+};
+exports.sendPostMatchdayEmail = sendPostMatchdayEmail;
+
+const sendPlanillaCierreEmail = async ({ userEmail, userName, planillaNombre, torneoName, matches }) => {
+    const totalMatches = matches.length;
+    const completedBets = matches.filter(m => m.goles_local != null && m.goles_visitante != null).length;
+    const isComplete = completedBets === totalMatches;
+
+    const subject = isComplete
+        ? `✅ Tu planilla "${planillaNombre}" está lista para ${torneoName}`
+        : `⚠️ Tu planilla "${planillaNombre}" cerró con ${totalMatches - completedBets} pronóstico${totalMatches - completedBets === 1 ? '' : 's'} sin cargar`;
+
+    const rows = matches.map(m => {
+        const bet = m.goles_local != null && m.goles_visitante != null
+            ? `${m.goles_local}-${m.goles_visitante}`
+            : '—';
+        return `<tr style="border-bottom:1px solid #E5E7EB;">
+          <td style="padding:10px 12px;font-size:13px;color:#111827;font-family:Arial,sans-serif;">${m.home_team} vs ${m.away_team}</td>
+          <td style="padding:10px 12px;font-size:13px;text-align:center;font-weight:bold;color:${bet === '—' ? '#9CA3AF' : '#001A4B'};font-family:Arial,sans-serif;">${bet}</td>
+        </tr>`;
+    }).join('');
+
+    const headerColor = isComplete ? '#166534' : '#92400E';
+    const headerBg = isComplete ? '#DCFCE7' : '#FEF3C7';
+    const headerEmoji = isComplete ? '✅' : '⚠️';
+    const headerLabel = isComplete ? 'PLANILLA CONFIRMADA' : 'PLANILLA CON PRONÓSTICOS FALTANTES';
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <tr><td style="background-color:#001A4B;padding:28px 32px 20px;text-align:center;">
+        <p style="margin:0;font-size:22px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;">⚽ PRODE Caballito</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">${torneoName}</p>
+      </td></tr>
+      <tr><td style="background-color:${headerBg};padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:15px;font-weight:900;color:${headerColor};font-family:Arial,sans-serif;">${headerEmoji} ${headerLabel}</p>
+        <p style="margin:4px 0 0;font-size:13px;color:${headerColor};font-family:Arial,sans-serif;">Cargaste ${completedBets} de ${totalMatches} pronósticos</p>
+      </td></tr>
+      <tr><td style="background-color:#FFFFFF;padding:28px 32px;">
+        <p style="margin:0 0 16px;font-size:16px;font-weight:900;color:#001A4B;font-family:Arial,sans-serif;">Hola ${userName} 👋</p>
+        <p style="margin:0 0 20px;font-size:14px;color:#374151;font-family:Arial,sans-serif;line-height:1.6;">
+          ${isComplete
+            ? `Tu planilla <strong>"${planillaNombre}"</strong> está lista. Este es tu resumen de pronósticos para ${torneoName}.`
+            : `El torneo cerró. Te dejamos el resumen de tu planilla <strong>"${planillaNombre}"</strong>. Los pronósticos con <strong>—</strong> no estaban cargados al cierre.`}
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#E5E7EB;border-radius:8px;overflow:hidden;">
+          <tr style="background-color:#F9FAFB;">
+            <th style="padding:10px 12px;font-size:12px;font-weight:bold;color:#6B7280;text-align:left;font-family:Arial,sans-serif;">PARTIDO</th>
+            <th style="padding:10px 12px;font-size:12px;font-weight:bold;color:#6B7280;text-align:center;font-family:Arial,sans-serif;">TU PRONÓSTICO</th>
+          </tr>
+          ${rows}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+          <tr><td align="center">
+            <a href="https://prodecaballito.com/planillas" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver mi planilla →</a>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">prodecaballito.com · Este es tu resumen de planilla al cierre del torneo</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+    await sendEmail({ to: userEmail, subject, html });
+};
+exports.sendPlanillaCierreEmail = sendPlanillaCierreEmail;
+
+const sendBetConfirmationEmail = async ({ userEmail, userName, planillaNombre, torneoName, matches }) => {
+    const subject = `✅ Pronósticos guardados — ${planillaNombre}`;
+    const rows = matches.map(m => {
+        const bet = m.goles_local != null && m.goles_visitante != null
+            ? `${m.goles_local}-${m.goles_visitante}`
+            : '—';
+        return `<tr style="border-bottom:1px solid #E5E7EB;">
+          <td style="padding:10px 12px;font-size:13px;color:#111827;font-family:Arial,sans-serif;">${m.home_team} vs ${m.away_team}</td>
+          <td style="padding:10px 12px;font-size:13px;text-align:center;font-weight:bold;color:${bet === '—' ? '#9CA3AF' : '#166534'};font-family:Arial,sans-serif;">${bet}</td>
+        </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <tr><td style="background-color:#001A4B;padding:28px 32px 20px;text-align:center;">
+        <p style="margin:0;font-size:22px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;">⚽ PRODE Caballito</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">${torneoName}</p>
+      </td></tr>
+      <tr><td style="background-color:#DCFCE7;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:15px;font-weight:900;color:#166534;font-family:Arial,sans-serif;">✅ PRONÓSTICOS GUARDADOS</p>
+        <p style="margin:4px 0 0;font-size:13px;color:#166534;font-family:Arial,sans-serif;">¡Todos tus pronósticos están listos!</p>
+      </td></tr>
+      <tr><td style="background-color:#FFFFFF;padding:28px 32px;">
+        <p style="margin:0 0 16px;font-size:16px;font-weight:900;color:#001A4B;font-family:Arial,sans-serif;">¡Bien hecho, ${userName}! 🎉</p>
+        <p style="margin:0 0 20px;font-size:14px;color:#374151;font-family:Arial,sans-serif;line-height:1.6;">
+          Cargaste todos tus pronósticos para <strong>${planillaNombre}</strong>. Guardamos este resumen para que tengas un comprobante.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#E5E7EB;border-radius:8px;overflow:hidden;">
+          <tr style="background-color:#F9FAFB;">
+            <th style="padding:10px 12px;font-size:12px;font-weight:bold;color:#6B7280;text-align:left;font-family:Arial,sans-serif;">PARTIDO</th>
+            <th style="padding:10px 12px;font-size:12px;font-weight:bold;color:#6B7280;text-align:center;font-family:Arial,sans-serif;">TU PRONÓSTICO</th>
+          </tr>
+          ${rows}
+        </table>
+        <div style="margin-top:16px;padding:12px;background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;">
+          <p style="margin:0;font-size:12px;color:#713F12;font-family:Arial,sans-serif;">⏰ Recordá que las apuestas cierran 5 minutos antes del primer partido. Podés editarlas hasta ese momento.</p>
+        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
+          <tr><td align="center">
+            <a href="https://prodecaballito.com/apuestas" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver mi planilla →</a>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">prodecaballito.com · Comprobante de pronósticos</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+    await sendEmail({ to: userEmail, subject, html });
+};
+exports.sendBetConfirmationEmail = sendBetConfirmationEmail;
+
+const sendPlanillaGeneralEmail = async ({ userEmail, userName, torneoName, matches, betsByUser }) => {
+    const subject = `🔮 La planilla general de ${torneoName} — ¿quién apostó qué?`;
+
+    const MAX_COLS = 8;
+    const users = betsByUser.slice(0, MAX_COLS);
+    const hasMore = betsByUser.length > MAX_COLS;
+
+    const headerCols = users.map(u =>
+        `<th style="padding:8px 6px;font-size:10px;font-weight:bold;color:#fff;text-align:center;font-family:Arial,sans-serif;white-space:nowrap;">${u.nombre.split(' ')[0]}</th>`
+    ).join('');
+
+    const dataRows = matches.map(m => {
+        const betCols = users.map(u => {
+            const b = u.bets[m.id];
+            const txt = b != null ? `${b.local}-${b.visitante}` : '—';
+            const isMe = u.email === userEmail;
+            return `<td style="padding:8px 6px;font-size:12px;text-align:center;font-weight:${isMe ? 'bold' : 'normal'};color:${txt === '—' ? '#9CA3AF' : isMe ? '#001A4B' : '#374151'};background:${isMe ? '#EFF6FF' : 'transparent'};font-family:Arial,sans-serif;">${txt}</td>`;
+        }).join('');
+        return `<tr style="border-bottom:1px solid #E5E7EB;">
+          <td style="padding:8px 10px;font-size:11px;color:#111827;font-family:Arial,sans-serif;white-space:nowrap;">${m.home_team} vs ${m.away_team}</td>
+          ${betCols}
+        </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <tr><td style="background-color:#001A4B;padding:28px 32px 20px;text-align:center;">
+        <p style="margin:0;font-size:22px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;">⚽ PRODE Caballito</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">${torneoName} — Las apuestas cerraron</p>
+      </td></tr>
+      <tr><td style="background-color:#FFFFFF;padding:28px 32px;">
+        <p style="margin:0 0 8px;font-size:16px;font-weight:900;color:#001A4B;font-family:Arial,sans-serif;">🔮 ¿Quién apostó qué, ${userName}?</p>
+        <p style="margin:0 0 20px;font-size:13px;color:#6B7280;font-family:Arial,sans-serif;">Tu columna está resaltada en azul. Las apuestas ya están cerradas — ahora a esperar los resultados.</p>
+        <div style="overflow-x:auto;">
+          <table cellpadding="0" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#E5E7EB;min-width:100%;">
+            <tr style="background-color:#001A4B;">
+              <th style="padding:8px 10px;font-size:10px;font-weight:bold;color:#93C5FD;text-align:left;font-family:Arial,sans-serif;">PARTIDO</th>
+              ${headerCols}
+            </tr>
+            ${dataRows}
+          </table>
+        </div>
+        ${hasMore ? `<p style="margin:12px 0 0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">* Se muestran ${MAX_COLS} participantes. Ver la planilla completa en la app.</p>` : ''}
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+          <tr><td align="center">
+            <a href="https://prodecaballito.com/matriz" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver la matriz completa →</a>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">prodecaballito.com · Planilla general al cierre del torneo</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+    await sendEmail({ to: userEmail, subject, html });
+};
+exports.sendPlanillaGeneralEmail = sendPlanillaGeneralEmail;
+
+const sendPlanillaDeletedEmail = async ({ userEmail, userName, planillaNombre }) => {
+    const firstName = (userName || 'jugador').split(' ')[0];
+    const subject = `Tu planilla "${planillaNombre}" fue eliminada`;
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${subject}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+        <tr><td style="background:#001A4B;padding:24px 32px;">
+          <p style="margin:0;font-size:20px;font-weight:bold;color:#FFDF00;">⚽ PRODE Caballito</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="font-size:16px;color:#333;margin:0 0 16px;">Hola <strong>${firstName}</strong>,</p>
+          <p style="font-size:14px;color:#555;margin:0 0 16px;">
+            Tu planilla <strong>"${planillaNombre}"</strong> fue eliminada por un administrador.
+          </p>
+          <p style="font-size:14px;color:#555;margin:0 0 24px;">
+            Si tenés dudas o creés que fue un error, escribinos por WhatsApp.
+          </p>
+          <a href="https://prodecaballito.com" style="display:inline-block;background:#001A4B;color:#FFDF00;text-decoration:none;font-size:14px;font-weight:bold;padding:12px 28px;border-radius:50px;">
+            Ir al PRODE →
+          </a>
+        </td></tr>
+        <tr><td style="padding:16px 32px;background:#f8f8f8;border-top:1px solid #eee;">
+          <p style="font-size:11px;color:#999;margin:0;">© ${new Date().getFullYear()} PRODE Caballito · noreply@prodecaballito.com</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+    await sendEmail({ to: userEmail, subject, html });
+};
+exports.sendPlanillaDeletedEmail = sendPlanillaDeletedEmail;
+
 //# sourceMappingURL=email.js.map

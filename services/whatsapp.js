@@ -1,5 +1,10 @@
 "use strict";
 
+// WhatsApp via Twilio. Para SMS regular (Infobip) ver services/sms.js
+
+// WHATSAPP_ENABLED: set to "false" to disable all WhatsApp sends (e.g. while WABA is restricted).
+const WHATSAPP_ENABLED = process.env.WHATSAPP_ENABLED !== 'false';
+
 // WHATSAPP_WHITELIST: comma-separated numbers (e.g. "+5491155996222,+5491141843591")
 // When set, only those numbers receive messages (sandbox/testing mode).
 // Remove or leave empty in production to send to all users.
@@ -28,6 +33,11 @@ const TEMPLATES = {
 };
 
 const sendWhatsApp = async ({ to, body }) => {
+    if (!WHATSAPP_ENABLED) {
+        console.log(`[whatsapp] WHATSAPP_ENABLED=false, skipping send to ${to}`);
+        return;
+    }
+
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken  = process.env.TWILIO_AUTH_TOKEN;
     const from       = process.env.TWILIO_WHATSAPP_FROM; // 'whatsapp:+14155238886'
@@ -58,24 +68,12 @@ const sendWhatsApp = async ({ to, body }) => {
     return message;
 };
 
-const sendSMS = async ({ to, body }) => {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken  = process.env.TWILIO_AUTH_TOKEN;
-    const from       = process.env.TWILIO_SMS_FROM; // '+17753638425'
-
-    if (!accountSid || !authToken || !from) {
-        console.warn('[sms] Twilio env vars not set, skipping');
+const sendWhatsAppTemplate = async ({ to, templateName, variables }) => {
+    if (!WHATSAPP_ENABLED) {
+        console.log(`[whatsapp-template] WHATSAPP_ENABLED=false, skipping "${templateName}" to ${to}`);
         return;
     }
 
-    const normalized = to.startsWith('+') ? to : `+${to}`;
-    const twilio = require('twilio')(accountSid, authToken);
-    const message = await twilio.messages.create({ from, to: normalized, body });
-    console.log(`[sms] sent to ${normalized} — sid: ${message.sid}`);
-    return message;
-};
-
-const sendWhatsAppTemplate = async ({ to, templateName, variables }) => {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken  = process.env.TWILIO_AUTH_TOKEN;
     const from       = process.env.TWILIO_WHATSAPP_FROM;
@@ -105,4 +103,4 @@ const sendWhatsAppTemplate = async ({ to, templateName, variables }) => {
     return message;
 };
 
-module.exports = { sendWhatsApp, sendSMS, sendWhatsAppTemplate, TEMPLATES };
+module.exports = { sendWhatsApp, sendWhatsAppTemplate, TEMPLATES };

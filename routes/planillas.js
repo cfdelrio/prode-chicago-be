@@ -4,120 +4,15 @@ const express_1 = require("express");
 const connection_1 = require("../db/connection");
 const auth_1 = require("../middleware/auth");
 const validation_1 = require("../middleware/validation");
-const { sendEmail } = require('../services/email');
+const { sendPlanillaDeletedEmail } = require('../services/email');
 const router = (0, express_1.Router)();
 
-async function sendPlanillaConfirmationEmail(planillaId) {
-    try {
-        const userRes = await connection_1.db.query(
-            `SELECT u.email, u.nombre, p.nombre_planilla
-             FROM planillas p JOIN users u ON p.user_id = u.id
-             WHERE p.id = $1`,
-            [planillaId]
-        );
-        if (!userRes.rows.length) return;
-        const { email, nombre, nombre_planilla } = userRes.rows[0];
-
-        const betsRes = await connection_1.db.query(
-            `SELECT m.equipo_local, m.equipo_visitante, m.grupo, m.jornada,
-                    b.goles_local, b.goles_visitante
-             FROM bets b
-             JOIN matches m ON b.match_id = m.id
-             WHERE b.planilla_id = $1
-             ORDER BY m.grupo, m.jornada, m.fecha`,
-            [planillaId]
-        );
-
-        const rows = betsRes.rows.map(r => `
-      <tr>
-        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">${r.grupo || ''}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">${r.equipo_local}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:bold">${r.goles_local} - ${r.goles_visitante}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb">${r.equipo_visitante}</td>
-      </tr>`).join('');
-
-        const html = `
-      <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;background:#f8fafc">
-        <div style="background:#001A4B;padding:28px 24px;border-radius:12px 12px 0 0;text-align:center">
-          <h1 style="color:#fff;margin:0;font-size:1.4rem">⚽ Planilla Confirmada</h1>
-          <p style="color:rgba(255,255,255,0.7);margin:8px 0 0;font-size:0.9rem">${nombre_planilla}</p>
-        </div>
-        <div style="background:#fff;padding:24px;border-radius:0 0 12px 12px">
-          <p style="color:#374151">Hola <strong>${nombre}</strong>,</p>
-          <p style="color:#374151">Tu planilla <strong>${nombre_planilla}</strong> fue cerrada correctamente. A continuación encontrás todos tus pronósticos:</p>
-          <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:0.88rem">
-            <thead>
-              <tr style="background:#001A4B;color:#fff">
-                <th style="padding:8px 10px;text-align:left">Grupo</th>
-                <th style="padding:8px 10px;text-align:left">Local</th>
-                <th style="padding:8px 10px;text-align:center">Pronóstico</th>
-                <th style="padding:8px 10px;text-align:left">Visitante</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <p style="color:#6b7280;font-size:0.82rem">Guardá este email como respaldo de tus pronósticos.</p>
-          <p style="color:#6b7280;font-size:0.82rem">¡Buena suerte! 🏆</p>
-        </div>
-        <p style="text-align:center;color:#9ca3af;font-size:0.75rem;padding:16px">
-          PRODE Caballito · <a href="https://prodecaballito.com" style="color:#0042A5">prodecaballito.com</a>
-        </p>
-      </div>`;
-
-        await sendEmail({
-            to: email,
-            subject: `✅ Tu planilla "${nombre_planilla}" fue cerrada — PRODE Caballito`,
-            html,
-        });
-    } catch (err) {
-        console.error('sendPlanillaConfirmationEmail error:', err);
-    }
-}
-
-async function autoClosePlanillasAtCutoff() {
-    try {
-        const cutoffResult = await connection_1.db.query(
-            "SELECT MIN(time_cutoff) as cutoff FROM matches WHERE estado != 'cancelled'"
-        );
-        const cutoff = cutoffResult.rows[0]?.cutoff;
-        if (!cutoff || new Date() <= new Date(cutoff)) return;
-
-        const planillasResult = await connection_1.db.query(
-            `SELECT DISTINCT p.id, p.user_id FROM planillas p
-             WHERE p.precio_pagado = false`
-        );
-
-        for (const planilla of planillasResult.rows) {
-            await connection_1.db.query(
-                'UPDATE planillas SET precio_pagado = true WHERE id = $1',
-                [planilla.id]
-            );
-
-            await connection_1.db.query(
-                `DELETE FROM bets b
-                 WHERE b.planilla_id = $1
-                   AND EXISTS (
-                     SELECT 1 FROM matches m
-                     WHERE m.id = b.match_id AND m.estado != 'finished'
-                   )`,
-                [planilla.id]
-            );
-
-            sendPlanillaConfirmationEmail(planilla.id);
-
-            await connection_1.db.query(
-                `INSERT INTO audit_log (user_id, action, entity_type, entity_id, new_value)
-                 VALUES ($1, 'auto_close_planilla', 'planillas', $2, $3)`,
-                [planilla.user_id, planilla.id, JSON.stringify({ reason: 'tournament_cutoff' })]
-            );
-        }
-
-        if (planillasResult.rows.length > 0) {
-            console.log(`✅ Auto-cerradas ${planillasResult.rows.length} planillas al cutoff`);
-        }
-    } catch (err) {
-        console.error('autoClosePlanillasAtCutoff error:', err);
-    }
+// ── Ensure locked column exists (auto-migrate) ──────────────────────────────
+let _lockedColEnsured = false;
+async function ensureLockedColumn() {
+    if (_lockedColEnsured) return;
+    await connection_1.db.query('ALTER TABLE planillas ADD COLUMN IF NOT EXISTS locked BOOLEAN DEFAULT false');
+    _lockedColEnsured = true;
 }
 
 // ── planilla_tournaments: tabla N:N planilla ↔ torneo ─────────────────────────
@@ -164,6 +59,7 @@ router.get('/public/all', async (req, res) => {
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
         await ensurePlanillaTournamentsTable();
+        await ensureLockedColumn();
         const result = await connection_1.db.query(`
             SELECT p.*,
                 COALESCE(SUM(s.puntos_obtenidos), 0) as puntos_totales,
@@ -191,13 +87,6 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
     try {
         await ensurePlanillaTournamentsTable();
         const { tournament_id } = req.body;
-        if (req.user.rol !== 'admin') {
-            const cutoffResult = await connection_1.db.query("SELECT MIN(time_cutoff) as cutoff FROM matches WHERE estado != 'cancelled'");
-            const cutoff = cutoffResult.rows[0]?.cutoff;
-            if (cutoff && new Date() > new Date(cutoff)) {
-                return res.status(400).json({ success: false, error: 'El cierre del torneo ha pasado. No es posible crear nuevas planillas.' });
-            }
-        }
         const countResult = await connection_1.db.query('SELECT COUNT(*) FROM planillas WHERE user_id = $1', [req.user.userId]);
         const nombre_planilla = `Planilla ${parseInt(countResult.rows[0].count) + 1}`;
         const result = await connection_1.db.query(`INSERT INTO planillas (user_id, nombre_planilla)
@@ -244,12 +133,13 @@ router.get('/:id', auth_1.authMiddleware, validation_1.uuidParam, async (req, re
 });
 router.put('/:id/lock', auth_1.authMiddleware, validation_1.uuidParam, async (req, res) => {
     try {
+        await ensureLockedColumn();
         const { id } = req.params;
-        const existing = await connection_1.db.query('SELECT user_id, precio_pagado FROM planillas WHERE id = $1', [id]);
+        const existing = await connection_1.db.query('SELECT user_id, locked FROM planillas WHERE id = $1', [id]);
         if (!existing.rows.length) return res.status(404).json({ success: false, error: 'Planilla no encontrada' });
         if (existing.rows[0].user_id !== req.user.userId)
             return res.status(403).json({ success: false, error: 'No tienes permisos' });
-        if (existing.rows[0].precio_pagado)
+        if (existing.rows[0].locked)
             return res.status(400).json({ success: false, error: 'La planilla ya está cerrada' });
         // Verificar que todos los partidos pendientes tienen apuesta en esta planilla
         const pendingWithoutBet = await connection_1.db.query(`
@@ -269,8 +159,7 @@ router.put('/:id/lock', auth_1.authMiddleware, validation_1.uuidParam, async (re
                 missing: pendingWithoutBet.rows.length,
             });
         }
-        const result = await connection_1.db.query('UPDATE planillas SET precio_pagado = true WHERE id = $1 RETURNING *', [id]);
-        sendPlanillaConfirmationEmail(id);
+        const result = await connection_1.db.query('UPDATE planillas SET locked = true WHERE id = $1 RETURNING *', [id]);
         res.json({ success: true, data: result.rows[0] });
     }
     catch (error) {
@@ -305,6 +194,12 @@ router.delete('/:id', auth_1.authMiddleware, validation_1.uuidParam, async (req,
         if (existingResult.rows[0].user_id !== req.user.userId && req.user.rol === 'usuario') {
             return res.status(403).json({ success: false, error: 'No tienes permisos' });
         }
+        const rankingRes = await connection_1.db.query('SELECT id FROM ranking WHERE planilla_id = $1', [id]);
+        if (rankingRes.rows.length > 0) {
+            const rankingIds = rankingRes.rows.map(r => r.id);
+            await connection_1.db.query("DELETE FROM comments WHERE target_type = 'ranking' AND target_id = ANY($1::uuid[])", [rankingIds]);
+        }
+        await connection_1.db.query("DELETE FROM comments WHERE target_type = 'planilla' AND target_id = $1", [id]);
         await connection_1.db.query('DELETE FROM planillas WHERE id = $1', [id]);
         res.json({ success: true, message: 'Planilla eliminada' });
     }
@@ -314,11 +209,13 @@ router.delete('/:id', auth_1.authMiddleware, validation_1.uuidParam, async (req,
 });
 router.get('/admin/all', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res) => {
     try {
+        await ensureLockedColumn();
         const result = await connection_1.db.query(`
-      SELECT 
+      SELECT
         p.id,
         p.nombre_planilla,
         p.precio_pagado,
+        p.locked,
         p.created_at,
         p.user_id,
         u.nombre as user_name,
@@ -327,7 +224,7 @@ router.get('/admin/all', auth_1.authMiddleware, auth_1.requireAdmin, async (req,
       FROM planillas p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN scores s ON p.id = s.planilla_id
-      GROUP BY p.id, p.nombre_planilla, p.precio_pagado, p.created_at, p.user_id, u.nombre, u.email
+      GROUP BY p.id, p.nombre_planilla, p.precio_pagado, p.locked, p.created_at, p.user_id, u.nombre, u.email
       ORDER BY p.created_at DESC
     `);
         res.json({ success: true, data: result.rows });
@@ -340,19 +237,15 @@ router.get('/admin/all', auth_1.authMiddleware, auth_1.requireAdmin, async (req,
 router.put('/admin/:id', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { nombre_planilla, precio_pagado } = req.body;
-        const prev = await connection_1.db.query('SELECT precio_pagado FROM planillas WHERE id = $1', [id]);
-        const wasPaid = prev.rows[0]?.precio_pagado;
+        const { nombre_planilla, precio_pagado, locked } = req.body;
         const result = await connection_1.db.query(`UPDATE planillas SET
         nombre_planilla = COALESCE($1, nombre_planilla),
-        precio_pagado = COALESCE($2, precio_pagado)
-       WHERE id = $3
-       RETURNING *`, [nombre_planilla, precio_pagado, id]);
+        precio_pagado = COALESCE($2, precio_pagado),
+        locked = COALESCE($3, locked)
+       WHERE id = $4
+       RETURNING *`, [nombre_planilla, precio_pagado, locked, id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Planilla no encontrada' });
-        }
-        if (!wasPaid && precio_pagado === true) {
-            sendPlanillaConfirmationEmail(id);
         }
         res.json({ success: true, data: result.rows[0] });
     }
@@ -364,23 +257,34 @@ router.put('/admin/:id', auth_1.authMiddleware, auth_1.requireAdmin, async (req,
 router.delete('/admin/:id', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
+        // Fetch user data before deletion for email notification
+        const planillaRes = await connection_1.db.query(
+            `SELECT p.nombre_planilla, u.email AS user_email, u.nombre AS user_name
+             FROM planillas p JOIN users u ON u.id = p.user_id
+             WHERE p.id = $1`, [id]
+        );
+        const planillaData = planillaRes.rows[0] ?? null;
+        const rankingRes = await connection_1.db.query('SELECT id FROM ranking WHERE planilla_id = $1', [id]);
+        if (rankingRes.rows.length > 0) {
+            const rankingIds = rankingRes.rows.map(r => r.id);
+            await connection_1.db.query("DELETE FROM comments WHERE target_type = 'ranking' AND target_id = ANY($1::uuid[])", [rankingIds]);
+        }
+        await connection_1.db.query("DELETE FROM comments WHERE target_type = 'planilla' AND target_id = $1", [id]);
         await connection_1.db.query('DELETE FROM planillas WHERE id = $1', [id]);
         res.json({ success: true, message: 'Planilla eliminada' });
+        // Fire-and-forget: email failure must not affect the response
+        if (planillaData) {
+            sendPlanillaDeletedEmail({
+                userEmail: planillaData.user_email,
+                userName: planillaData.user_name,
+                planillaNombre: planillaData.nombre_planilla,
+            }).catch(err => console.error('[planillas] email notification failed:', err));
+        }
     }
     catch (error) {
         console.error('Delete planilla error:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
-router.post('/admin/auto-close-cutoff', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res) => {
-    try {
-        await autoClosePlanillasAtCutoff();
-        res.json({ success: true, message: 'Planillas auto-cerradas' });
-    }
-    catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
 exports.default = router;
-module.exports.autoClosePlanillasAtCutoff = autoClosePlanillasAtCutoff;
 //# sourceMappingURL=planillas.js.map

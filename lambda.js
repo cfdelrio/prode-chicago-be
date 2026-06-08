@@ -43,11 +43,36 @@ app.use('/api/matchdays', routes_1.matchdaysRoutes);
 app.use('/api/imagemail', routes_1.imagemailRoutes);
 app.use('/api/push', routes_1.pushRoutes);
 app.use('/api/admin', routes_1.adminRoutes);
+app.use('/api/voice', routes_1.voiceRoutes);
+app.use('/api/public/polls', routes_1.pollsRoutes);
 app.post('/api/internal/broadcast-whatsapp', authMiddleware, requireAdmin, async (req, res) => {
     try {
         const { message } = req.body;
         if (!message || !message.trim()) {
             return res.status(400).json({ success: false, error: 'Mensaje requerido' });
+        }
+        if (process.env.ENGAGE_ENABLED === 'true') {
+            const { sendEventBatch } = require('./services/engageClient');
+            const { buildEngageMetadata } = require('./utils/engageHelpers');
+            const usersRes = await db.query(
+                `SELECT id, nombre, email, whatsapp_number, whatsapp_consent,
+                        tema_equipo, foto_url, created_at, rol, idioma_pref
+                 FROM users
+                 WHERE whatsapp_number IS NOT NULL AND whatsapp_consent = true`
+            );
+            const events = usersRes.rows.map(u => ({
+                type: 'prode.broadcast_manual',
+                userId: String(u.id),
+                payload: {
+                    business_context: { message },
+                },
+                metadata: buildEngageMetadata(u),
+            }));
+            if (events.length > 0) {
+                await sendEventBatch(events);
+            }
+            console.log(`[broadcast-whatsapp] engage batch queued: ${events.length} users`);
+            return res.json({ success: true, data: { total: events.length, sent: events.length, failed: 0 } });
         }
         const result = await db.query(
             `SELECT nombre, whatsapp_number FROM users WHERE whatsapp_number IS NOT NULL AND whatsapp_consent = true`
@@ -107,13 +132,11 @@ const handler = async (event, context) => {
             matchday_label: event.matchdayLabel || 'Ganador de la Fecha',
             updated_at: new Date().toISOString(),
         };
-        // Upsert single latest winner
         await db.query(
             `INSERT INTO config (key, value, updated_at) VALUES ('ganador_fecha', $1, NOW())
              ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
             [JSON.stringify(entry)]
         );
-        // Append to winners array
         const existingRes = await db.query(`SELECT value FROM config WHERE key = 'ganadores_fechas'`);
         let winners = [];
         if (existingRes.rows.length > 0) {
@@ -129,7 +152,7 @@ const handler = async (event, context) => {
         return { statusCode: 200, body: JSON.stringify({ success: true }) };
     }
 
-    // Test: simulate full winner flow for a given user (generates FIFA card + saves to carousel)
+    // Test: simulate full winner flow for a given user
     if (event.source === 'prode.test-winner-flow') {
         const { processWinnerNotification } = require('./routes/matchdays');
         const email = event.email || 'cfdelrio@gmail.com';
@@ -147,8 +170,7 @@ const handler = async (event, context) => {
         return { statusCode: 200, body: JSON.stringify({ success: true }) };
     }
 
-    // EventBridge weekly summary trigger (nuevo diseño aprobado)
-    // Rule cron: 0 12 ? * MON * (every Monday 12:00 UTC = 09:00 Argentina)
+    // EventBridge weekly summary trigger
     if (event.source === 'prode.weekly' || event.source === 'weekly-digest' || event['detail-type'] === 'weekly-digest') {
         const { sendWeeklyEmailBatch } = require('./routes/admin');
         const testEmail = event.testEmail || null;
@@ -157,13 +179,86 @@ const handler = async (event, context) => {
         return { statusCode: 200, body: JSON.stringify(result) };
     }
 
+    // EventBridge pre-cutoff reminder (every 10 min)
+    if (event.source === 'prode.reminder-cutoff' || event['detail-type'] === 'reminder-cutoff') {
+        const { runCutoffReminders } = require('./services/reminderCutoff');
+        const { runTournamentReminders } = require('./services/reminderTournament');
+        const [cutoffResult, tournamentResult] = await Promise.all([
+            runCutoffReminders(),
+            runTournamentReminders(),
+        ]);
+        console.log('[prode.reminder-cutoff] Result:', cutoffResult);
+        console.log('[prode.tournament-reminder] Result:', tournamentResult);
+        return { statusCode: 200, body: JSON.stringify({ cutoff: cutoffResult, tournament: tournamentResult }) };
+    }
+
+    // EventBridge scheduled jobs processor (kickoff/second_half + opt-in bet_reminders)
+    if (event.source === 'prode.process-jobs') {
+        const { schedulerService } = require('./workers/schedulerService');
+        const { processBetReminders } = require('./services/betReminders');
+        await schedulerService.processPendingJobs();
+        const brResult = await processBetReminders();
+        console.log('[prode.process-jobs] Pending jobs processed. bet_reminders:', brResult);
+        return { statusCode: 200, body: JSON.stringify({ success: true, bet_reminders: brResult }) };
+    }
+
+    // EventBridge daily: payment reminder for unpaid planillas
+    if (event.source === 'prode.payment-reminder' || event['detail-type'] === 'payment-reminder') {
+        const { runPaymentReminders } = require('./services/reminderPayment');
+        const result = await runPaymentReminders();
+        console.log('[prode.payment-reminder] Result:', result);
+        return { statusCode: 200, body: JSON.stringify(result) };
+    }
+
+    // EventBridge daily: T-5d voice survey for users with pending bets (via Engage / voice.orkestai)
+    if (event.source === 'prode.voice-5day-reminder' || event['detail-type'] === 'voice-5day-reminder') {
+        const { runVoice5dayReminders } = require('./services/voice5dayReminder');
+        const result = await runVoice5dayReminders();
+        console.log('[prode.voice-5day-reminder] Result:', result);
+        return { statusCode: 200, body: JSON.stringify(result) };
+    }
+
+    if (event.source === 'prode.voice-match-reminder' || event['detail-type'] === 'voice-match-reminder') {
+        const { runVoiceMatchReminders } = require('./services/voiceMatchReminder');
+        const result = await runVoiceMatchReminders();
+        console.log('[prode.voice-match-reminder] Result:', result);
+        return { statusCode: 200, body: JSON.stringify(result) };
+    }
+
+    // Ad-hoc query: matches with cutoff in the next N minutes
+    if (event.source === 'prode.upcoming-cutoffs') {
+        const minutes = Math.min(event.minutes || 60, 1440);
+        const result = await db.query(`
+            SELECT id, home_team, away_team, estado, time_cutoff, start_time,
+                   ROUND(EXTRACT(EPOCH FROM (time_cutoff - NOW())) / 60) AS min_until_cutoff
+            FROM matches
+            WHERE estado = 'scheduled'
+              AND time_cutoff IS NOT NULL
+              AND time_cutoff BETWEEN NOW() AND NOW() + ($1 || ' minutes')::INTERVAL
+            ORDER BY time_cutoff ASC
+        `, [minutes]);
+        console.log(`[prode.upcoming-cutoffs] ${result.rows.length} matches in next ${minutes} min`);
+        result.rows.forEach(m => console.log(`  ${m.home_team} vs ${m.away_team} — cierra en ${m.min_until_cutoff} min`));
+        return { statusCode: 200, body: JSON.stringify({ count: result.rows.length, window_minutes: minutes, matches: result.rows }) };
+    }
+
+    // EventBridge voice survey trigger
+    if (event.source === 'prode.voice-survey') {
+        const { runVoiceSurvey } = require('./services/voiceSurvey');
+        const result = await runVoiceSurvey({
+            surveyId: event.surveyId,
+            question:  event.question,
+            options:   event.options || [],
+            userIds:   event.userIds || null,
+        });
+        console.log('[prode.voice-survey] Result:', result);
+        return { statusCode: 200, body: JSON.stringify(result) };
+    }
+
     const response = await serverlessHandler(event, context);
-    // Asegurarse de que los headers CORS estén presentes
     if (!response.headers) {
         response.headers = {};
     }
-    // Solo agregar headers CORS si no están ya presentes
-    // El middleware CORS ya los configura correctamente
     if (!response.headers['Access-Control-Allow-Origin'] && !response.headers['access-control-allow-origin']) {
         response.headers['Access-Control-Allow-Origin'] = event.headers?.origin || event.headers?.Origin || '*';
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
