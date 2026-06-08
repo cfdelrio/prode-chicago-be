@@ -326,7 +326,7 @@ async function _notifyMatchRescheduled(matchId, match) {
         } else if (u.whatsapp_number && u.whatsapp_consent) {
             sendSMSWithRetry({
                 to: u.whatsapp_number,
-                body: `📅 ${homeTeam} vs ${awayTeam} reprogramado: ${formatted} — prodecaballito.com/apuestas`,
+                body: `📅 ${homeTeam} vs ${awayTeam} reprogramado: ${formatted} — chicago.prodecaballito.com/apuestas`,
             }).catch(err => console.error(`[reschedule] SMS failed user=${u.user_id}:`, err.message));
         }
     }

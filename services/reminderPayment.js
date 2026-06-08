@@ -95,7 +95,7 @@ async function runPaymentReminders() {
             if (p.whatsapp_number && p.whatsapp_consent) {
                 sendSMSWithRetry({
                     to: p.whatsapp_number,
-                    body: `💸 "${p.nombre_planilla}" para ${p.torneo_name} sigue sin pagar. Arrancan en ${daysLeft} día${daysLeft === 1 ? '' : 's'}. 👉 prodecaballito.com/planillas`,
+                    body: `💸 "${p.nombre_planilla}" para ${p.torneo_name} sigue sin pagar. Arrancan en ${daysLeft} día${daysLeft === 1 ? '' : 's'}. 👉 chicago.prodecaballito.com/planillas`,
                 }).catch(err => console.error(`[payment-reminder] SMS failed user=${p.user_id}:`, err.message))
             }
         }
@@ -116,7 +116,7 @@ function buildPaymentEmailHtml({ nombre, planillaNombre, torneoName }) {
       <tr><td style="background-color:#7C2D12;padding:32px 32px 24px;text-align:center;">
         <p style="margin:0;font-size:40px;line-height:1;">💸</p>
         <p style="margin:10px 0 4px;font-size:20px;font-weight:900;color:#FED7AA;font-family:Arial,sans-serif;">PLANILLA SIN PAGAR</p>
-        <p style="margin:0;font-size:13px;color:#FDBA74;font-family:Arial,sans-serif;">PRODE Caballito</p>
+        <p style="margin:0;font-size:13px;color:#FDBA74;font-family:Arial,sans-serif;">PRODE Nueva Chicago</p>
       </td></tr>
       <tr><td style="background-color:#FFFFFF;padding:32px 32px 28px;">
         <p style="margin:0 0 8px;font-size:18px;font-weight:900;color:#001A4B;font-family:Arial,sans-serif;">¡Hola, ${nombre}! 👋</p>
@@ -126,12 +126,12 @@ function buildPaymentEmailHtml({ nombre, planillaNombre, torneoName }) {
         </p>
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr><td align="center">
-            <a href="https://prodecaballito.com/planillas" style="display:inline-block;background-color:#EA580C;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Confirmar pago →</a>
+            <a href="https://chicago.prodecaballito.com/planillas" style="display:inline-block;background-color:#EA580C;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Confirmar pago →</a>
           </td></tr>
         </table>
       </td></tr>
       <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">prodecaballito.com</p>
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">chicago.prodecaballito.com</p>
       </td></tr>
     </table>
   </td></tr>

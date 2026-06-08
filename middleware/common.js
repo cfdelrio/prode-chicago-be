@@ -17,7 +17,7 @@ exports.securityMiddleware = (0, helmet_1.default)({
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https:", "blob:"],
             scriptSrc: ["'self'"],
-            connectSrc: ["'self'", "https://t49euho172.execute-api.us-east-1.amazonaws.com", "https://*.prodecaballito.com", "https://engage.orkestai.ar"],
+            connectSrc: ["'self'", "https://t49euho172.execute-api.us-east-1.amazonaws.com", "https://*.chicago.prodecaballito.com", "https://engage.orkestai.ar"],
         },
     },
     crossOriginEmbedderPolicy: false,
@@ -27,8 +27,8 @@ const allowedOrigins = [
     'http://localhost:5173',
     'https://d2vjb37mnj30m1.cloudfront.net',
     'https://d16s2xc71j0bqo.cloudfront.net',
-    'https://prodecaballito.com',
-    'https://www.prodecaballito.com',
+    process.env.FRONTEND_URL || 'https://chicago.prodecaballito.com',
+    'https://www.chicago.prodecaballito.com',
 ];
 exports.corsMiddleware = (0, cors_1.default)({
     origin: function (origin, callback) {

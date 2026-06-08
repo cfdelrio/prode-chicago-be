@@ -93,7 +93,7 @@ async function runTournamentReminders() {
             } else if (u.whatsapp_number && u.whatsapp_consent) {
                 sendSMSWithRetry({
                     to: u.whatsapp_number,
-                    body: `🏁 Mañana arranca ${t.tournament_name}. ${payload.body} 👉 prodecaballito.com/apuestas`,
+                    body: `🏁 Mañana arranca ${t.tournament_name}. ${payload.body} 👉 chicago.prodecaballito.com/apuestas`,
                 }).catch(err => console.error(`[tournament-reminder] SMS failed user=${u.user_id}:`, err.message))
             }
 

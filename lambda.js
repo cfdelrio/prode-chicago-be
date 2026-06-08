@@ -9,7 +9,7 @@ const express_1 = __importDefault(require("express"));
 const middleware_1 = require("./middleware");
 const rateLimit_1 = require("./middleware/rateLimit");
 const routes_1 = require("./routes");
-const { sendWhatsApp } = require('./services/whatsapp');
+const { sendWhatsApp, sendWhatsAppTemplate } = require('./services/whatsapp');
 const { db } = require('./db/connection');
 const { authMiddleware, requireAdmin } = require('./middleware/auth');
 const { runConcurrent } = require('./services/concurrency');
@@ -75,18 +75,28 @@ app.post('/api/internal/broadcast-whatsapp', authMiddleware, requireAdmin, async
             return res.json({ success: true, data: { total: events.length, sent: events.length, failed: 0 } });
         }
         const result = await db.query(
-            `SELECT whatsapp_number FROM users WHERE whatsapp_number IS NOT NULL AND whatsapp_consent = true`
+            `SELECT nombre, whatsapp_number FROM users WHERE whatsapp_number IS NOT NULL AND whatsapp_consent = true`
         );
-        const numbers = result.rows.map(r => r.whatsapp_number);
+        const recipients = result.rows;
+        const useTemplate = Boolean(process.env.BROADCAST_TEMPLATE_SID);
+        console.log(`[broadcast-whatsapp] mode=${useTemplate ? 'template' : 'freeform'} recipients=${recipients.length}`);
+
         let sent = 0, failed = 0;
-        const results = await runConcurrent(numbers, (number) =>
-            sendWhatsApp({ to: number, body: message }), 10);
+        const results = await runConcurrent(recipients, (r) =>
+            useTemplate
+                ? sendWhatsAppTemplate({
+                    to: r.whatsapp_number,
+                    templateName: 'prode_broadcast_aviso',
+                    variables: { 1: r.nombre || 'jugador', 2: message },
+                })
+                : sendWhatsApp({ to: r.whatsapp_number, body: message }),
+            10);
         for (const r of results) {
             if (r.status === 'fulfilled') sent++;
             else { failed++; console.error(`[broadcast-whatsapp] error:`, r.reason?.message); }
         }
-        console.log(`[broadcast-whatsapp] total=${numbers.length} sent=${sent} failed=${failed}`);
-        res.json({ success: true, data: { total: numbers.length, sent, failed } });
+        console.log(`[broadcast-whatsapp] total=${recipients.length} sent=${sent} failed=${failed}`);
+        res.json({ success: true, data: { total: recipients.length, sent, failed } });
     } catch (error) {
         console.error('[broadcast-whatsapp] error:', error.message);
         res.status(500).json({ success: false, error: error.message });
