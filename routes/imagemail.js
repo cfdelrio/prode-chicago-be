@@ -1,6 +1,6 @@
 "use strict";
 const { Router } = require('express');
-const AWS = require('aws-sdk');
+const { SESClient, SendRawEmailCommand } = require('@aws-sdk/client-ses');
 const nodemailer = require('nodemailer');
 const https = require('https');
 const http = require('http');
@@ -8,8 +8,10 @@ const { URL } = require('url');
 
 const router = Router();
 
-const ses = new AWS.SES({ region: process.env.AWS_REGION || 'us-east-1' });
-const transporter = nodemailer.createTransport({ SES: ses });
+const ses = new SESClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const transporter = nodemailer.createTransport({
+  SES: { ses, aws: { SendRawEmailCommand } },
+});
 
 router.post('/', async (req, res) => {
   try {

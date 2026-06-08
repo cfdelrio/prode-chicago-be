@@ -14,7 +14,7 @@ exports.authLimiter = (0, express_rate_limit_1.default)({
 });
 exports.loginLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 15,
     message: { success: false, error: 'Demasiados intentos de login. Intenta en 15 minutos.' },
     standardHeaders: true,
     legacyHeaders: false,

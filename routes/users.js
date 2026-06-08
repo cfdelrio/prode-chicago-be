@@ -9,11 +9,9 @@ const auth_1 = require("../middleware/auth");
 const validation_1 = require("../middleware/validation");
 const rateLimit_1 = require("../middleware/rateLimit");
 const config_1 = require("../config");
-const aws_sdk_1 = __importDefault(require("aws-sdk"));
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const router = (0, express_1.Router)();
-const s3 = new aws_sdk_1.default.S3({
-    region: process.env.AWS_REGION || 'us-east-1',
-});
+const s3 = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 router.get('/by-email', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res) => {
     try {
         const { email } = req.query;
@@ -67,6 +65,15 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
+router.get('/stats', async (req, res) => {
+    try {
+        const result = await connection_1.db.query('SELECT COUNT(*)::int AS total FROM users');
+        res.json({ success: true, data: { total_users: result.rows[0].total } });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: 'Error interno' });
+    }
+});
 router.get('/:id', auth_1.authMiddleware, validation_1.uuidParam, async (req, res) => {
     try {
         const { id } = req.params;
@@ -96,11 +103,25 @@ router.put('/:id', auth_1.authMiddleware, validation_1.uuidParam, validation_1.u
         if (tema_equipo && !validThemes.includes(tema_equipo)) {
             return res.status(400).json({ success: false, error: 'Tema inválido. Opciones: ' + validThemes.join(', ') });
         }
-        // Validar whatsapp_number si se proporciona
-        if (whatsapp_number !== undefined && whatsapp_number !== null && whatsapp_number !== '') {
-            const clean = whatsapp_number.replace(/\D/g, '');
-            if (clean.length < 7 || clean.length > 15) {
-                return res.status(400).json({ success: false, error: 'Número de WhatsApp inválido' });
+        // Validate and normalize whatsapp_number to E.164 (+[country_code][number])
+        let normalizedPhone = undefined;
+        if (whatsapp_number !== undefined && whatsapp_number !== null) {
+            if (whatsapp_number === '') {
+                normalizedPhone = null;
+            } else {
+                // Strip everything except digits and leading +
+                const withPlus = whatsapp_number.trim().startsWith('+')
+                    ? '+' + whatsapp_number.replace(/\D/g, '')
+                    : whatsapp_number.replace(/\D/g, '');
+                const digits = withPlus.replace(/^\+/, '');
+                // E.164: must start with +, total 7-15 digits, country code means >= 10 digits
+                if (!withPlus.startsWith('+') || digits.length < 10 || digits.length > 15) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Número inválido. Ingresalo en formato internacional: +549XXXXXXXXXX',
+                    });
+                }
+                normalizedPhone = withPlus; // store as +XXXXXXXXXXX
             }
         }
         const result = await connection_1.db.query(`UPDATE users SET
@@ -113,7 +134,7 @@ router.put('/:id', auth_1.authMiddleware, validation_1.uuidParam, validation_1.u
        RETURNING id, nombre, email, rol, idioma_pref, tema_equipo, foto_url, whatsapp_number, whatsapp_consent`,
             [nombre, idioma_pref, tema_equipo,
              whatsapp_consent !== undefined ? whatsapp_consent : null,
-             whatsapp_number !== undefined ? (whatsapp_number === '' ? null : whatsapp_number.replace(/\D/g, '')) : null,
+             normalizedPhone !== undefined ? normalizedPhone : null,
              id]);
         res.json({ success: true, data: result.rows[0] });
     }
@@ -140,12 +161,12 @@ router.post('/:id/photo', auth_1.authMiddleware, rateLimit_1.uploadLimiter, asyn
             return res.status(400).json({ success: false, error: 'El archivo debe ser menor a 5MB' });
         }
         const key = `avatars/${id}/${Date.now()}-${file.name}`;
-        await s3.upload({
+        await s3.send(new PutObjectCommand({
             Bucket: process.env.S3_BUCKET_UPLOADS,
             Key: key,
             Body: file.data,
             ContentType: file.mimetype,
-        }).promise();
+        }));
         const fotoUrl = `${config_1.config.aws.cdnUrl}/${key}`;
         await connection_1.db.query('UPDATE users SET foto_url = $1 WHERE id = $2', [fotoUrl, id]);
         res.json({ success: true, data: { foto_url: fotoUrl } });
@@ -214,23 +235,20 @@ router.post('/upload-avatar', auth_1.authMiddleware, rateLimit_1.uploadLimiter, 
     try {
         const { image, fileName, contentType } = req.body;
         const userId = req.user.userId;
-        console.log('Upload avatar request:', { userId, fileName, contentType, hasImage: !!image });
         if (!image) {
             return res.status(400).json({ success: false, error: 'No se recibió ninguna imagen' });
         }
         const buffer = Buffer.from(image, 'base64');
         const ext = fileName?.split('.').pop() || 'jpg';
         const key = `avatars/${userId}-${Date.now()}.${ext}`;
-        console.log('Uploading to S3:', { key, bucket: process.env.S3_BUCKET_UPLOADS });
         const bucket = process.env.S3_BUCKET_UPLOADS || 'prode-uploads-cdelrio';
-        await s3.upload({
+        await s3.send(new PutObjectCommand({
             Bucket: bucket,
             Key: key,
             Body: buffer,
             ContentType: contentType || 'image/jpeg',
-        }).promise();
+        }));
         const avatarUrl = `${config_1.config.aws.cdnUrl}/${key}`;
-        console.log('Avatar uploaded:', avatarUrl);
         await connection_1.db.query('UPDATE users SET foto_url = $1 WHERE id = $2', [avatarUrl, userId]);
         res.json({
             success: true,
@@ -244,9 +262,9 @@ router.post('/upload-avatar', auth_1.authMiddleware, rateLimit_1.uploadLimiter, 
 });
 router.put('/profile', auth_1.authMiddleware, async (req, res) => {
     try {
-        const { nombre, telefono } = req.body;
+        const { nombre } = req.body;
         const userId = req.user.userId;
-        await connection_1.db.query('UPDATE users SET nombre = COALESCE($1, nombre), telefono = COALESCE($2, telefono) WHERE id = $3', [nombre, telefono, userId]);
+        await connection_1.db.query('UPDATE users SET nombre = COALESCE($1, nombre) WHERE id = $2', [nombre, userId]);
         res.json({ success: true, message: 'Perfil actualizado correctamente' });
     }
     catch (error) {
@@ -324,5 +342,51 @@ router.get('/admin/users-with-planillas', auth_1.authMiddleware, auth_1.requireA
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
+// Gamification: badges + streaks + summary
+router.get('/:id/gamification', auth_1.authMiddleware, validation_1.uuidParam, async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (req.user.userId !== id && req.user.rol !== 'admin') {
+            return res.status(403).json({ success: false, error: 'No autorizado' });
+        }
+        const { getGamificationSummary } = require('../services/gamification');
+        const summary = await getGamificationSummary(id);
+        res.json({ success: true, data: summary });
+    }
+    catch (error) {
+        console.error('[users/gamification] error:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+router.delete('/:id', auth_1.authMiddleware, auth_1.requireAdmin, validation_1.uuidParam, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const target = await connection_1.db.query('SELECT id, rol FROM users WHERE id = $1', [id]);
+        if (target.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+        if (target.rows[0].rol === 'admin') {
+            return res.status(403).json({ success: false, error: 'No se puede eliminar un usuario admin' });
+        }
+        await connection_1.db.query('BEGIN');
+        await connection_1.db.query(`DELETE FROM scores WHERE planilla_id IN (SELECT id FROM planillas WHERE user_id = $1)`, [id]);
+        await connection_1.db.query(`DELETE FROM scores_by_matchday WHERE planilla_id IN (SELECT id FROM planillas WHERE user_id = $1)`, [id]);
+        await connection_1.db.query(`DELETE FROM tournament_rankings WHERE planilla_id IN (SELECT id FROM planillas WHERE user_id = $1)`, [id]);
+        await connection_1.db.query(`DELETE FROM ranking WHERE planilla_id IN (SELECT id FROM planillas WHERE user_id = $1)`, [id]);
+        await connection_1.db.query(`DELETE FROM bets WHERE planilla_id IN (SELECT id FROM planillas WHERE user_id = $1)`, [id]);
+        await connection_1.db.query(`DELETE FROM reminder_sent WHERE user_id = $1`, [id]);
+        await connection_1.db.query(`DELETE FROM planillas WHERE user_id = $1`, [id]);
+        await connection_1.db.query(`DELETE FROM comments WHERE author_id = $1`, [id]);
+        await connection_1.db.query(`DELETE FROM users WHERE id = $1`, [id]);
+        await connection_1.db.query('COMMIT');
+        res.json({ success: true, message: 'Usuario eliminado correctamente' });
+    }
+    catch (error) {
+        await connection_1.db.query('ROLLBACK').catch(() => {});
+        console.error('[users/delete]', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 exports.default = router;
-//# sourceMappingURL=users.js.map

@@ -4,6 +4,10 @@ const express_1 = require("express");
 const connection_1 = require("../db/connection");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
+
+// Claves de config accesibles sin autenticación
+const PUBLIC_CONFIG_KEYS = new Set(['ganadores_fechas', 'ganador_fecha']);
+
 router.get('/', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res) => {
     try {
         const result = await connection_1.db.query('SELECT * FROM config ORDER BY key');
@@ -13,6 +17,22 @@ router.get('/', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res) => 
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
+
+// Primero: rutas públicas (ganadores_fechas, ganador_fecha)
+router.get('/:key', (req, res, next) => {
+    if (!PUBLIC_CONFIG_KEYS.has(req.params.key)) return next();
+    const { key } = req.params;
+    connection_1.db.query('SELECT * FROM config WHERE key = $1', [key])
+        .then(result => {
+            if (result.rows.length === 0) {
+                return res.status(404).json({ success: false, error: 'Configuración no encontrada' });
+            }
+            res.json({ success: true, data: result.rows[0] });
+        })
+        .catch(() => res.status(500).json({ success: false, error: 'Error interno del servidor' }));
+});
+
+// Resto: requieren autenticación
 router.get('/:key', auth_1.authMiddleware, async (req, res) => {
     try {
         const { key } = req.params;
@@ -26,6 +46,7 @@ router.get('/:key', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
+
 router.put('/:key', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res) => {
     try {
         const { key } = req.params;
@@ -47,5 +68,6 @@ router.put('/:key', auth_1.authMiddleware, auth_1.requireAdmin, async (req, res)
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
+
 exports.default = router;
 //# sourceMappingURL=config.js.map

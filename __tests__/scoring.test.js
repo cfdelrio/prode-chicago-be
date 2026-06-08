@@ -25,66 +25,64 @@ describe('calcularPuntaje', () => {
     expect(calcularPuntaje(bet(1, 0), res(0, 0)).puntos).toBe(0)
   })
 
-  // ── 1 pt — ganador correcto, diferencia incorrecta ────────────────────────
+  // ── 1 pt — ganador correcto, sin gol exacto ──────────────────────────────
 
-  it('1 pt — ganó correcto, diferencia distinta (3-1 vs 1-0)', () => {
+  it('1 pt — ganó correcto, sin gol exacto (3-1 vs 1-0)', () => {
     const r = calcularPuntaje(bet(3, 1), res(1, 0))
     expect(r.puntos).toBe(1)
     expect(r.bonus).toBe(false)
-    expect(r.detalle.acerto_diferencia).toBe(false)
+    expect(r.detalle.exactos_count).toBe(0)
   })
 
-  it('1 pt — local exacto pero diferencia distinta (2-1 vs 2-0)', () => {
-    // Un gol exacto NO alcanza si la diferencia cambia
-    const r = calcularPuntaje(bet(2, 1), res(2, 0))
+  it('1 pt — empate correcto, marcador diferente sin gol exacto (0-0 vs 1-1)', () => {
+    // En empate exactos_count es 0 o 2, nunca 1 → nunca verde
+    const r = calcularPuntaje(bet(0, 0), res(1, 1))
     expect(r.puntos).toBe(1)
-    expect(r.detalle.acerto_exacto_local).toBe(true)
-    expect(r.detalle.acerto_diferencia).toBe(false)
-  })
-
-  it('1 pt — visitante exacto pero diferencia distinta (2-0 vs 1-0)', () => {
-    const r = calcularPuntaje(bet(2, 0), res(1, 0))
-    expect(r.puntos).toBe(1)
-    expect(r.detalle.acerto_exacto_visitante).toBe(true)
-    expect(r.detalle.acerto_diferencia).toBe(false)
-  })
-
-  it('1 pt — visitante gana con diferencias distintas (0-2 vs 0-3)', () => {
-    expect(calcularPuntaje(bet(0, 2), res(0, 3)).puntos).toBe(1)
-  })
-
-  // ── 2 pts — ganador correcto + diferencia correcta (verde) ────────────────
-
-  it('2 pts — diferencia correcta, sin marcador exacto (3-1 vs 4-2)', () => {
-    const r = calcularPuntaje(bet(3, 1), res(4, 2))
-    expect(r.puntos).toBe(2)
     expect(r.detalle.acerto_diferencia).toBe(true)
     expect(r.detalle.exactos_count).toBe(0)
   })
 
-  it('2 pts — diferencia correcta, sin marcador exacto (2-1 vs 3-2)', () => {
-    expect(calcularPuntaje(bet(2, 1), res(3, 2)).puntos).toBe(2)
+  it('1 pt — empate correcto, marcador diferente sin gol exacto (1-1 vs 2-2)', () => {
+    expect(calcularPuntaje(bet(1, 1), res(2, 2)).puntos).toBe(1)
   })
 
-  it('2 pts — empate correcto, marcador diferente (0-0 vs 1-1)', () => {
-    // Ambos diff=0: también cuenta como diferencia correcta
-    const r = calcularPuntaje(bet(0, 0), res(1, 1))
-    expect(r.puntos).toBe(2)
+  it('1 pt — diff correcta pero sin gol exacto (3-1 vs 4-2)', () => {
+    const r = calcularPuntaje(bet(3, 1), res(4, 2))
+    expect(r.puntos).toBe(1)
     expect(r.detalle.acerto_diferencia).toBe(true)
+    expect(r.detalle.exactos_count).toBe(0)
   })
 
-  it('2 pts — empate correcto, diferencia 0 en ambos (1-1 vs 2-2)', () => {
-    expect(calcularPuntaje(bet(1, 1), res(2, 2)).puntos).toBe(2)
+  it('1 pt — diff correcta pero sin gol exacto (2-1 vs 3-2)', () => {
+    expect(calcularPuntaje(bet(2, 1), res(3, 2)).puntos).toBe(1)
   })
 
-  it('2 pts — visitante gana con misma diferencia (0-2 vs 0-3) — NO, diferencia distinta', () => {
-    // 0-2 → diff=-2, 0-3 → diff=-3, diferente
-    expect(calcularPuntaje(bet(0, 2), res(0, 3)).puntos).toBe(1)
+  it('1 pt — diff correcta pero sin gol exacto (1-3 vs 0-2)', () => {
+    expect(calcularPuntaje(bet(1, 3), res(0, 2)).puntos).toBe(1)
   })
 
-  it('2 pts — visitante gana con misma diferencia (1-3 vs 0-2)', () => {
-    // diff=-2 en ambos
-    expect(calcularPuntaje(bet(1, 3), res(0, 2)).puntos).toBe(2)
+  // ── 2 pts — ganador correcto + exactamente 1 gol exacto (verde) ──────────
+
+  it('2 pts — local exacto (2-1 vs 2-0)', () => {
+    const r = calcularPuntaje(bet(2, 1), res(2, 0))
+    expect(r.puntos).toBe(2)
+    expect(r.detalle.acerto_exacto_local).toBe(true)
+    expect(r.detalle.exactos_count).toBe(1)
+  })
+
+  it('2 pts — visitante exacto (2-0 vs 1-0)', () => {
+    const r = calcularPuntaje(bet(2, 0), res(1, 0))
+    expect(r.puntos).toBe(2)
+    expect(r.detalle.acerto_exacto_visitante).toBe(true)
+    expect(r.detalle.exactos_count).toBe(1)
+  })
+
+  it('2 pts — local exacto, visitante gana (0-2 vs 0-3)', () => {
+    // local=0 exacto en ambos; visitante distinto
+    const r = calcularPuntaje(bet(0, 2), res(0, 3))
+    expect(r.puntos).toBe(2)
+    expect(r.detalle.acerto_exacto_local).toBe(true)
+    expect(r.detalle.exactos_count).toBe(1)
   })
 
   // ── 3 pts — marcador exacto sin bonus ────────────────────────────────────

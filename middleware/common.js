@@ -17,7 +17,7 @@ exports.securityMiddleware = (0, helmet_1.default)({
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https:", "blob:"],
             scriptSrc: ["'self'"],
-            connectSrc: ["'self'", config_1.config.app.apiUrl],
+            connectSrc: ["'self'", "https://t49euho172.execute-api.us-east-1.amazonaws.com", "https://*.prodecaballito.com", "https://engage.orkestai.ar"],
         },
     },
     crossOriginEmbedderPolicy: false,
@@ -40,8 +40,7 @@ exports.corsMiddleware = (0, cors_1.default)({
             callback(null, true);
         }
         else {
-            console.log('Origin not in whitelist:', origin);
-            callback(null, true);
+            callback(new Error(`Origin not allowed by CORS: ${origin}`));
         }
     },
     credentials: true,

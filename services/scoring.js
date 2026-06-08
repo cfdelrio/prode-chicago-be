@@ -9,7 +9,8 @@ function calcularPuntaje(bet, result) {
     const acerto_exacto_visitante = bet.goles_visitante === result.resultado_visitante;
     const exactos_count = (acerto_exacto_local ? 1 : 0) + (acerto_exacto_visitante ? 1 : 0);
     const total_goles = result.resultado_local + result.resultado_visitante;
-    // Verde: ganador correcto + diferencia de goles correcta (local - visitante)
+    // Verde: ganador correcto + exactamente 1 gol exacto de los dos.
+    // Nota: en empate exactos_count es 0 o 2 (nunca 1), por eso empate nunca da verde.
     const diff_bet = bet.goles_local - bet.goles_visitante;
     const diff_result = result.resultado_local - result.resultado_visitante;
     const acerto_diferencia = diff_bet === diff_result;
@@ -20,7 +21,7 @@ function calcularPuntaje(bet, result) {
     else if (exactos_count === 2) {
         puntos = 3;
     }
-    else if (acerto_diferencia) {
+    else if (exactos_count === 1) {
         puntos = 2;
     }
     else {
