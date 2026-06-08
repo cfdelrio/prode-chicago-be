@@ -29,7 +29,7 @@ function validateTwilioSignature(req, res, next) {
   }
 
   // Full URL Twilio used to POST — must match exactly what Twilio was configured with.
-  const url = `${process.env.API_URL || 'https://api-chicago.prodecaballito.com'}${req.originalUrl}`;
+  const url = `${process.env.API_URL || 'https://api-hr.prodecaballito.com'}${req.originalUrl}`;
   const params = req.body || {};
 
   const isValid = twilio.validateRequest(authToken, signature, url, params);
@@ -44,9 +44,9 @@ function validateTwilioSignature(req, res, next) {
 
 const MENU_MESSAGES = {
   '1': 'El reglamento es simple. Hacés tus pronósticos antes del inicio de cada partido. Los resultados se toman al finalizar los 90 minutos reglamentarios. No cuentan alargues ni penales. Sumás puntos según tus aciertos y competís en el ranking general.',
-  '2': 'Para jugar, ingresá a Prode Nueva Chicago, completá tus pronósticos y seguí el ranking en vivo. La idea es demostrar quién sabe más de fútbol entre amigos, conocidos y fanáticos.',
+  '2': 'Para jugar, ingresá a Prode High Rolling, completá tus pronósticos y seguí el ranking en vivo. La idea es demostrar quién sabe más de fútbol entre amigos, conocidos y fanáticos.',
   '3': 'La primera ronda es la etapa inicial del juego. Luego, cuando el Mundial esté avanzado, se habilitará la segunda ronda. Cada jornada suma emoción y actualiza el ranking.',
-  '4': 'Sumate al canal oficial de WhatsApp de Prode Nueva Chicago para recibir novedades, cierres, rankings y avisos importantes. El link está disponible en nuestras redes y en la web oficial.',
+  '4': 'Sumate al canal oficial de WhatsApp de Prode High Rolling para recibir novedades, cierres, rankings y avisos importantes. El link está disponible en nuestras redes y en la web oficial.',
 };
 
 function buildWelcomeTwiml() {
@@ -55,7 +55,7 @@ function buildWelcomeTwiml() {
 <Response>
   <Gather numDigits="1" action="${menuUrl}" method="POST" timeout="8">
     <Say language="es-AR" voice="Polly.Conchita">
-      Bienvenido a Prode Nueva Chicago.
+      Bienvenido a Prode High Rolling.
       El prode futbolero donde competís contra todos en tiempo real.
       Para escuchar el reglamento, presioná 1.
       Para saber cómo jugar, presioná 2.
@@ -63,7 +63,7 @@ function buildWelcomeTwiml() {
       Para sumarte al canal oficial de WhatsApp, presioná 4.
     </Say>
   </Gather>
-  <Say language="es-AR" voice="Polly.Conchita">No recibimos ninguna opción. Gracias por llamar a Prode Nueva Chicago. ¡Nos vemos en el podio!</Say>
+  <Say language="es-AR" voice="Polly.Conchita">No recibimos ninguna opción. Gracias por llamar a Prode High Rolling. ¡Nos vemos en el podio!</Say>
 </Response>`;
 }
 
@@ -98,7 +98,7 @@ router.post('/menu', validateTwilioSignature, (req, res) => {
   <Gather numDigits="1" action="${API_BASE}/voice/menu" method="POST" timeout="8">
     <Say language="es-AR" voice="Polly.Conchita">Presioná 1 para volver al menú principal, o colgá cuando quieras.</Say>
   </Gather>
-  <Say language="es-AR" voice="Polly.Conchita">Gracias por llamar a Prode Nueva Chicago. ¡Hasta la próxima!</Say>
+  <Say language="es-AR" voice="Polly.Conchita">Gracias por llamar a Prode High Rolling. ¡Hasta la próxima!</Say>
 </Response>`);
   } else if (Digits === '1' || !Digits) {
     // Volver al menú (desde el "presioná 1 para volver")
@@ -125,7 +125,7 @@ router.post('/twiml', validateTwilioSignature, (req, res) => {
   <Gather numDigits="1" action="${responseUrl}" method="POST" timeout="10">
     <Say language="es-AR" voice="Polly.Conchita">${question}. ${optionsPhrased}. Repetimos: ${question}. ${optionsPhrased}.</Say>
   </Gather>
-  <Say language="es-AR" voice="Polly.Conchita">No recibimos tu respuesta. Gracias igual. Hasta la próxima del PRODE Nueva Chicago.</Say>
+  <Say language="es-AR" voice="Polly.Conchita">No recibimos tu respuesta. Gracias igual. Hasta la próxima del PRODE High Rolling.</Say>
 </Response>`);
 });
 
@@ -158,7 +158,7 @@ router.post('/response', validateTwilioSignature, async (req, res) => {
     res.type('text/xml');
     res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="es-AR" voice="Polly.Conchita">¡Gracias por tu voto! Hasta la próxima del PRODE Nueva Chicago.</Say>
+  <Say language="es-AR" voice="Polly.Conchita">¡Gracias por tu voto! Hasta la próxima del PRODE High Rolling.</Say>
   <Hangup/>
 </Response>`);
 });
