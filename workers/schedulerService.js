@@ -226,8 +226,8 @@ exports.schedulerService = {
                     const hasBet = user.goles_local != null && user.goles_visitante != null;
                     const score = hasBet ? `${user.goles_local}-${user.goles_visitante}` : null;
                     const smsBody = hasBet
-                        ? `${isKickoff ? '🟢 ¡Arrancó!' : '⏱️ ¡Segundo tiempo!'} ${job.homeTeam} vs ${job.awayTeam} — pronóstico: ${score} 👉 prodecaballito.com`
-                        : `${isKickoff ? '🟢 ¡Arrancó!' : '⏱️ ¡Segundo tiempo!'} ${job.homeTeam} vs ${job.awayTeam} 👉 prodecaballito.com`;
+                        ? `${isKickoff ? '🟢 ¡Arrancó!' : '⏱️ ¡Segundo tiempo!'} ${job.homeTeam} vs ${job.awayTeam} — pronóstico: ${score} 👉 chicago.prodecaballito.com`
+                        : `${isKickoff ? '🟢 ¡Arrancó!' : '⏱️ ¡Segundo tiempo!'} ${job.homeTeam} vs ${job.awayTeam} 👉 chicago.prodecaballito.com`;
                     const pushPayload = {
                         title: isKickoff
                             ? `🟢 ¡Arrancó! ${job.homeTeam} vs ${job.awayTeam}`

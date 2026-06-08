@@ -135,8 +135,8 @@ async function _notifyNewLeader({ rankingRows, prevLeader, match, resultLocal, r
 
         if (newLeader.whatsapp_number && newLeader.whatsapp_consent) {
             const smsBody = prevName
-                ? `👑 ¡Sos el nuevo líder! Le sacaste el #1 a ${prevName}. Tenés ${newLeader.puntos_totales} pts. 👉 prodecaballito.com/ranking`
-                : `🔥 ¡Sos el nuevo líder del PRODE Caballito! Con ${newLeader.puntos_totales} pts estás en el puesto #1. ¡No lo sueltes! 👉 prodecaballito.com/ranking`;
+                ? `👑 ¡Sos el nuevo líder! Le sacaste el #1 a ${prevName}. Tenés ${newLeader.puntos_totales} pts. 👉 chicago.prodecaballito.com/ranking`
+                : `🔥 ¡Sos el nuevo líder del PRODE Nueva Chicago! Con ${newLeader.puntos_totales} pts estás en el puesto #1. ¡No lo sueltes! 👉 chicago.prodecaballito.com/ranking`;
             await sendSMS({ to: newLeader.whatsapp_number, body: smsBody })
                 .catch(e => console.error('[sms] new leader error:', e.message));
         }
@@ -259,8 +259,8 @@ async function _notifyBetResults({ bets, rankingMap, match, resultLocal, resultV
 
                 if (userRanking.whatsapp_number && userRanking.whatsapp_consent) {
                     const smsBody = score.puntos > 0
-                        ? `⚽ ${match.home_team} ${resultLocal}–${resultVisitante} ${match.away_team} | Tu pronóstico: ${bet.goles_local}-${bet.goles_visitante} → +${score.puntos}pts\nEstás #${userRanking.position} en el ranking 👉 prodecaballito.com/ranking`
-                        : `⚽ ${match.home_team} ${resultLocal}–${resultVisitante} ${match.away_team} | Tu pronóstico: ${bet.goles_local}-${bet.goles_visitante} → 0 pts\nSeguís #${userRanking.position} 👉 prodecaballito.com/ranking`;
+                        ? `⚽ ${match.home_team} ${resultLocal}–${resultVisitante} ${match.away_team} | Tu pronóstico: ${bet.goles_local}-${bet.goles_visitante} → +${score.puntos}pts\nEstás #${userRanking.position} en el ranking 👉 chicago.prodecaballito.com/ranking`
+                        : `⚽ ${match.home_team} ${resultLocal}–${resultVisitante} ${match.away_team} | Tu pronóstico: ${bet.goles_local}-${bet.goles_visitante} → 0 pts\nSeguís #${userRanking.position} 👉 chicago.prodecaballito.com/ranking`;
                     await sendSMS({ to: userRanking.whatsapp_number, body: smsBody })
                         .catch(e => console.error(`[sms] result error for ${userId}:`, e.message));
                 }

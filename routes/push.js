@@ -107,7 +107,7 @@ router.post('/test-all', auth_1.authMiddleware, async (req, res) => {
         const { sendEmail } = require('../services/email');
         await sendEmail({
             to: user.email,
-            subject: '🔔 Test de notificaciones — PRODE Caballito',
+            subject: '🔔 Test de notificaciones — PRODE Nueva Chicago',
             html: `<p>Hola ${user.nombre}, este es un email de prueba del sistema de notificaciones. Si lo recibís, el canal de email funciona correctamente.</p>`,
         });
         results.email = { ok: true, to: user.email };
@@ -125,7 +125,7 @@ router.post('/test-all', auth_1.authMiddleware, async (req, res) => {
             const { sendWhatsApp } = require('../services/whatsapp');
             await sendWhatsApp({
                 to: user.whatsapp_number,
-                body: '🔔 Test de notificaciones PRODE Caballito — si ves esto, WhatsApp funciona correctamente.',
+                body: '🔔 Test de notificaciones PRODE Nueva Chicago — si ves esto, WhatsApp funciona correctamente.',
             });
             results.whatsapp = { ok: true, to: user.whatsapp_number };
         }

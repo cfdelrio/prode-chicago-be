@@ -271,12 +271,12 @@ router.post('/forgot-password', rateLimit_1.authLimiter, async (req, res) => {
         }
         const user = result.rows[0];
         const resetToken = (0, utils_1.generateToken)({ userId: user.id, email, rol: 'password-reset' }, '60m');
-        const resetLink = `${process.env.FRONTEND_URL || 'https://prodecaballito.com'}/recuperar-contrasena?token=${resetToken}`;
+        const resetLink = `${process.env.FRONTEND_URL || 'https://chicago.prodecaballito.com'}/recuperar-contrasena?token=${resetToken}`;
         console.log(`📧 Enviando email de recuperación a ${email}`);
         try {
             await (0, email_1.sendEmail)({
                 to: email,
-                subject: '🔐 Recupera tu contraseña — PRODE Caballito',
+                subject: '🔐 Recupera tu contraseña — PRODE Nueva Chicago',
                 html: `
                     <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;background:#f8fafc">
                         <div style="background:#001A4B;padding:28px 24px;border-radius:12px 12px 0 0;text-align:center">
@@ -294,7 +294,7 @@ router.post('/forgot-password', rateLimit_1.authLimiter, async (req, res) => {
                             <p style="color:#6b7280;font-size:0.82rem">Si el botón no funciona, copia este link en tu navegador:<br/><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">${resetLink}</code></p>
                         </div>
                         <p style="text-align:center;color:#9ca3af;font-size:0.75rem;padding:16px">
-                            PRODE Caballito · <a href="https://prodecaballito.com" style="color:#0042A5">prodecaballito.com</a>
+                            PRODE Nueva Chicago · <a href="https://chicago.prodecaballito.com" style="color:#0042A5">chicago.prodecaballito.com</a>
                         </p>
                     </div>
                 `,
@@ -431,8 +431,8 @@ router.post('/forgot-password', rateLimit_1.authLimiter, async (req, res) => {
 
         await (0, email_1.sendEmail)({
             to: email,
-            subject: 'Código para restablecer tu contraseña — PRODE Caballito',
-            html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:12px;"><h2 style="color:#001A4B;">⚽ PRODE Caballito</h2><p>Hola <strong>${user.nombre}</strong>,</p><p>Tu código para restablecer la contraseña es:</p><div style="background:#001A4B;color:#FFDF00;font-size:36px;font-weight:bold;text-align:center;padding:20px;border-radius:8px;letter-spacing:8px;margin:20px 0;">${code}</div><p style="color:#666;font-size:13px;">Expira en 15 minutos. Si no lo pediste, ignorá este email.</p></div>`,
+            subject: 'Código para restablecer tu contraseña — PRODE Nueva Chicago',
+            html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:12px;"><h2 style="color:#001A4B;">⚽ PRODE Nueva Chicago</h2><p>Hola <strong>${user.nombre}</strong>,</p><p>Tu código para restablecer la contraseña es:</p><div style="background:#001A4B;color:#FFDF00;font-size:36px;font-weight:bold;text-align:center;padding:20px;border-radius:8px;letter-spacing:8px;margin:20px 0;">${code}</div><p style="color:#666;font-size:13px;">Expira en 15 minutos. Si no lo pediste, ignorá este email.</p></div>`,
         });
 
         res.json({ success: true, message: 'Si el email existe, recibirás un código' });

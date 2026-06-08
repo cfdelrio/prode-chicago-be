@@ -568,7 +568,7 @@ router.post('/request-unlock', auth_1.authMiddleware, async (req, res) => {
         const targetName    = targetRes.rows[0]?.nombre    || 'otro jugador';
         const matchRow      = matchRes.rows[0];
         const matchLabel    = matchRow ? `${matchRow.home_team} vs ${matchRow.away_team}` : 'un partido';
-        const adminPanelUrl = 'https://prodecaballito.com/admin';
+        const adminPanelUrl = 'https://chicago.prodecaballito.com/admin';
         const betRow        = betRes.rows[0];
         const betDisplay    = betRow
             ? `<strong style="font-size:28px;color:#0042A5">${betRow.goles_local} - ${betRow.goles_visitante}</strong>`
@@ -596,7 +596,7 @@ router.post('/request-unlock', auth_1.authMiddleware, async (req, res) => {
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f3f4f6">
   <div style="max-width:600px;margin:0 auto;padding:20px">
     <div style="background:linear-gradient(135deg,#0042A5,#001A4B);padding:30px;text-align:center;border-radius:12px 12px 0 0">
-      <h1 style="color:white;margin:0;font-size:24px">⚽ PRODE Caballito</h1>
+      <h1 style="color:white;margin:0;font-size:24px">⚽ PRODE Nueva Chicago</h1>
     </div>
     <div style="background:white;padding:30px;border-radius:0 0 12px 12px;box-shadow:0 4px 6px rgba(0,0,0,.1)">
       <h2 style="color:#1F2937;margin-top:0">🔓 Nueva solicitud de desbloqueo</h2>
@@ -632,7 +632,7 @@ router.post('/request-unlock', auth_1.authMiddleware, async (req, res) => {
         </a>
       </div>
       <p style="color:#9CA3AF;font-size:12px;text-align:center;margin-top:20px">
-        © 2026 PRODE Caballito — Este es un email automático
+        © 2026 PRODE Nueva Chicago — Este es un email automático
       </p>
     </div>
   </div>
@@ -716,7 +716,7 @@ router.put('/unlock-requests/:id/approve', auth_1.authMiddleware, async (req, re
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f3f4f6">
   <div style="max-width:600px;margin:0 auto;padding:20px">
     <div style="background:linear-gradient(135deg,#0042A5,#001A4B);padding:30px;text-align:center;border-radius:12px 12px 0 0">
-      <h1 style="color:white;margin:0">⚽ PRODE Caballito</h1>
+      <h1 style="color:white;margin:0">⚽ PRODE Nueva Chicago</h1>
     </div>
     <div style="background:white;padding:30px;border-radius:0 0 12px 12px">
       <h2 style="color:#166534">✅ Tu solicitud fue aprobada</h2>
@@ -726,7 +726,7 @@ router.put('/unlock-requests/:id/approve', auth_1.authMiddleware, async (req, re
         en el partido <strong>${r.match_label}</strong>.
       </p>
       <div style="text-align:center;margin:25px 0">
-        <a href="https://prodecaballito.com/matriz"
+        <a href="https://chicago.prodecaballito.com/matriz"
            style="display:inline-block;background:linear-gradient(135deg,#0042A5,#001A4B);color:white;
                   text-decoration:none;padding:14px 32px;border-radius:50px;font-size:16px;font-weight:700">
           Ver la Matriz →

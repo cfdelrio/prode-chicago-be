@@ -23,8 +23,8 @@ const ALLOWED = [
   'http://localhost:5173',
   'https://d2vjb37mnj30m1.cloudfront.net',
   'https://d16s2xc71j0bqo.cloudfront.net',
-  'https://prodecaballito.com',
-  'https://www.prodecaballito.com',
+  'https://chicago.prodecaballito.com',
+  'https://www.chicago.prodecaballito.com',
 ]
 
 describe('corsMiddleware — whitelist', () => {

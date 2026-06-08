@@ -33,7 +33,7 @@ describe('sendEmail', () => {
     const body = JSON.parse(opts.body)
     expect(body.to).toBe('a@b.com')
     expect(body.subject).toBe('Test')
-    expect(body.from).toContain('PRODE Caballito')
+    expect(body.from).toContain('PRODE Nueva Chicago')
   })
 
   it('lanza error si Resend responde con status no-ok', async () => {
@@ -65,10 +65,10 @@ describe('sendWelcomeEmail', () => {
     expect(body.html).toContain('O MIRAR')
   })
 
-  it('incluye el CTA con link a prodecaballito.com', async () => {
+  it('incluye el CTA con link a chicago.prodecaballito.com', async () => {
     await sendWelcomeEmail('user@test.com', 'Juan')
     const body = JSON.parse(mockFetch.mock.calls[0][1].body)
-    expect(body.html).toContain('prodecaballito.com')
+    expect(body.html).toContain('chicago.prodecaballito.com')
     expect(body.html).toContain('EMPEZAR A JUGAR')
   })
 

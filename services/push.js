@@ -17,7 +17,7 @@ function getWebpush() {
     if (!_webpush) {
         _webpush = require('web-push');
         _webpush.setVapidDetails(
-            'mailto:admin@prodecaballito.com',
+            'mailto:admin@chicago.prodecaballito.com',
             VAPID_PUBLIC_KEY,
             VAPID_PRIVATE_KEY
         );

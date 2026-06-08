@@ -78,8 +78,8 @@ async function processBetReminders() {
                 );
             } else if (r.whatsapp_number && r.whatsapp_consent) {
                 const body = hasBet
-                    ? `⚽ En ${r.remind_minutes} min — ${r.home_team} vs ${r.away_team} | Tu pronóstico: ${score} 🤞 prodecaballito.com`
-                    : `⚽ ${r.home_team} vs ${r.away_team} empieza en ${r.remind_minutes} min — todavía podés apostar 👉 prodecaballito.com/apuestas`;
+                    ? `⚽ En ${r.remind_minutes} min — ${r.home_team} vs ${r.away_team} | Tu pronóstico: ${score} 🤞 chicago.prodecaballito.com`
+                    : `⚽ ${r.home_team} vs ${r.away_team} empieza en ${r.remind_minutes} min — todavía podés apostar 👉 chicago.prodecaballito.com/apuestas`;
                 await sendSMSWithRetry({ to: r.whatsapp_number, body }).catch(err =>
                     console.error(`[bet-reminders] sms failed (after retries) user=${r.user_id} match=${r.match_id}:`, err.message)
                 );
