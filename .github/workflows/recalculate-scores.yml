@@ -1,0 +1,49 @@
+name: Recalculate Historical Scores
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type YES to confirm recalculation (affects production DB)'
+        required: true
+        default: 'NO'
+
+jobs:
+  recalculate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate confirmation
+        if: github.event.inputs.confirm != 'YES'
+        run: |
+          echo "❌ Confirmation required. Set input 'confirm' to 'YES' to proceed."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run recalculation
+        run: node scripts/recalculateScores.js
+        env:
+          DB_HOST:     ${{ secrets.DB_HOST }}
+          DB_PORT:     ${{ secrets.DB_PORT }}
+          DB_NAME:     ${{ secrets.DB_NAME }}
+          DB_USER:     ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+      - name: Notify success
+        if: success()
+        run: echo "✅ Scores recalculated successfully"
+
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Recalculation failed - check logs above"
