@@ -1,5 +1,8 @@
 'use strict'
 
+// RESEND_API_KEY must be set before email.js loads — we removed the hardcoded fallback
+process.env.RESEND_API_KEY = 'test-resend-key'
+
 const mockFetch = jest.fn()
 global.fetch = mockFetch
 

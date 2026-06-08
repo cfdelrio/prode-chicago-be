@@ -70,9 +70,55 @@ router.get('/unread-count', async (req, res) => {
 });
 router.get('/unread-count-auth', auth_1.authMiddleware, async (req, res) => {
     try {
-        const result = await connection_1.db.query(`SELECT COUNT(*) as count FROM notifications 
+        const result = await connection_1.db.query(`SELECT COUNT(*) as count FROM notifications
        WHERE user_id = $1 AND status = 'sent'`, [req.user.userId]);
         res.json({ success: true, data: { count: parseInt(result.rows[0].count) } });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+router.put('/:id', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const userId = req.user.userId;
+
+        const validStatuses = ['sent', 'read', 'deleted'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ success: false, error: 'Status inválido' });
+        }
+
+        const result = await connection_1.db.query(
+            `UPDATE notifications SET status = $1 WHERE id = $2 AND user_id = $3 RETURNING *`,
+            [status, id, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Notificación no encontrada' });
+        }
+
+        res.json({ success: true, data: result.rows[0] });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+router.delete('/:id', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.userId;
+
+        const result = await connection_1.db.query(
+            `DELETE FROM notifications WHERE id = $1 AND user_id = $2 RETURNING id`,
+            [id, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Notificación no encontrada' });
+        }
+
+        res.json({ success: true, message: 'Notificación eliminada' });
     }
     catch (error) {
         res.status(500).json({ success: false, error: 'Error interno del servidor' });

@@ -7,6 +7,10 @@ const validation_1 = require("../middleware/validation");
 const auth_1 = require("../middleware/auth");
 const rateLimit_1 = require("../middleware/rateLimit");
 const email_1 = require("../services/email");
+const { sendEvent } = require("../services/engageClient");
+const { buildEngageMetadata } = require("../utils/engageHelpers");
+const { createLogger } = require("../utils/logger");
+const logger = createLogger('auth');
 const router = (0, express_1.Router)();
 router.post('/register', rateLimit_1.authLimiter, validation_1.registerValidation, async (req, res) => {
     try {
@@ -42,7 +46,7 @@ router.post('/register', rateLimit_1.authLimiter, validation_1.registerValidatio
         });
     }
     catch (error) {
-        console.error('Register error:', error);
+        logger.error('Register error', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
@@ -82,7 +86,7 @@ router.post('/login', rateLimit_1.loginLimiter, validation_1.loginValidation, as
         });
     }
     catch (error) {
-        console.error('Login error:', error);
+        logger.error('Login error', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
@@ -113,7 +117,7 @@ router.post('/refresh', async (req, res) => {
         });
     }
     catch (error) {
-        console.error('Refresh error:', error);
+        logger.error('Refresh error', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
@@ -126,7 +130,7 @@ router.post('/logout', auth_1.authMiddleware, async (req, res) => {
         res.json({ success: true, message: 'Sesión cerrada' });
     }
     catch (error) {
-        console.error('Logout error:', error);
+        logger.error('Logout error', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
@@ -157,42 +161,25 @@ router.post('/register-pending', rateLimit_1.authLimiter, async (req, res) => {
         if (existingUser.rows.length > 0) {
             return res.status(400).json({ success: false, error: 'El email ya está registrado' });
         }
-        const existingPending = await connection_1.db.query('SELECT id FROM pending_registrations WHERE email = $1', [email]);
-        if (existingPending.rows.length > 0) {
-            await connection_1.db.query('DELETE FROM pending_registrations WHERE email = $1', [email]);
-        }
         const hash_pass = await (0, utils_1.hashPassword)(password);
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const codeExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
-        const result = await connection_1.db.query(`INSERT INTO pending_registrations (nombre, email, hash_pass, verification_code, code_expires_at) 
-       VALUES ($1, $2, $3, $4, $5) 
-       RETURNING id, nombre, email`, [nombre, email, hash_pass, verificationCode, codeExpiresAt]);
-        const pendingReg = result.rows[0];
-        console.log(`📧 Enviando código de verificación a ${email}: ${verificationCode}`);
-        try {
-            await (0, email_1.sendVerificationCode)(email, nombre, verificationCode);
-            console.log(`✅ Email enviado exitosamente a ${email}`);
-        }
-        catch (emailError) {
-            console.error('❌ Error sending verification email:', emailError);
-        }
+        const result = await connection_1.db.query(`INSERT INTO users (nombre, email, hash_pass, email_verified, rol)
+       VALUES ($1, $2, $3, true, 'usuario')
+       RETURNING id`, [nombre, email, hash_pass]);
+        logger.info('User registered (no email verification)', { email });
         res.status(201).json({
             success: true,
-            message: 'Revisa tu email para el código de verificación.',
-            data: {
-                pendingId: pendingReg.id,
-            },
+            message: 'Cuenta creada correctamente.',
+            data: { userId: result.rows[0].id },
         });
     }
     catch (error) {
-        console.error('Register pending error:', error);
+        logger.error('Register error', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
 router.post('/verify-email', rateLimit_1.authLimiter, async (req, res) => {
     try {
         const { pendingId, code } = req.body;
-        console.log('🔍 Verificación recibida:', { pendingId, code, codeLength: code?.length });
         if (!pendingId || !code) {
             return res.status(400).json({ success: false, error: 'pendingId y code son requeridos' });
         }
@@ -203,20 +190,11 @@ router.post('/verify-email', rateLimit_1.authLimiter, async (req, res) => {
             return res.status(404).json({ success: false, error: 'Registro no encontrado o ya completado' });
         }
         const pending = result.rows[0];
-        console.log('📋 Registro encontrado:', {
-            email: pending.email,
-            codeInDB: pending.verification_code,
-            codeReceived: code,
-            expired: new Date() > new Date(pending.code_expires_at)
-        });
         if (new Date() > new Date(pending.code_expires_at)) {
-            console.log('❌ Código expirado');
             return res.status(400).json({ success: false, error: 'Código expirado. Solicita uno nuevo.' });
         }
         const isValidCode = pending.verification_code === code;
-        console.log('🔐 Validación:', { isValidCode, env: process.env.NODE_ENV });
         if (!isValidCode) {
-            console.log('❌ Código inválido - esperado:', pending.verification_code, 'recibido:', code);
             return res.status(400).json({ success: false, error: 'Código inválido' });
         }
         const userResult = await connection_1.db.query(`INSERT INTO users (nombre, email, hash_pass, email_verified, rol) 
@@ -233,7 +211,7 @@ router.post('/verify-email', rateLimit_1.authLimiter, async (req, res) => {
         });
     }
     catch (error) {
-        console.error('Verify email error:', error);
+        logger.error('Verify email error', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
@@ -253,10 +231,19 @@ router.post('/resend-code', rateLimit_1.authLimiter, async (req, res) => {
         await connection_1.db.query(`UPDATE pending_registrations 
        SET verification_code = $1, code_expires_at = $2 
        WHERE id = $3`, [verificationCode, codeExpiresAt, pendingId]);
-        console.log(`📧 Reenviando código a ${pending.email}: ${verificationCode}`);
         try {
-            await (0, email_1.sendVerificationCode)(pending.email, pending.nombre, verificationCode);
-            console.log(`✅ Email reenviado exitosamente`);
+            if (process.env.ENGAGE_ENABLED === 'true') {
+                await sendEvent({
+                    type: 'prode.verification_code',
+                    userId: `pending:${pendingId}`,
+                    idempotencyKey: `verification_code:${pendingId}`,
+                    payload: { code: verificationCode, expiresIn: 900 },
+                    metadata: buildEngageMetadata({ nombre: pending.nombre, email: pending.email, idioma_pref: 'es-AR' }),
+                });
+            } else {
+                await (0, email_1.sendVerificationCode)(pending.email, pending.nombre, verificationCode);
+            }
+            logger.info('Verification code resent', { email: pending.email });
         }
         catch (emailError) {
             console.error('❌ Error sending resend email:', emailError);
@@ -267,7 +254,7 @@ router.post('/resend-code', rateLimit_1.authLimiter, async (req, res) => {
         });
     }
     catch (error) {
-        console.error('Resend code error:', error);
+        logger.error('Resend code error', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
@@ -301,12 +288,21 @@ router.post('/complete-registration', rateLimit_1.authLimiter, async (req, res) 
         await connection_1.db.query(`INSERT INTO audit_log (user_id, action, entity_type, new_value) 
        VALUES ($1, 'complete_registration', 'users', $2)`, [user.id, JSON.stringify({ tema_equipo })]);
         
-        // Enviar email de bienvenida
-        try {
-            await (0, email_1.sendWelcomeEmail)(user.email, user.nombre);
-            console.log(`✅ Email de bienvenida enviado a ${user.email}`);
-        } catch (emailError) {
-            console.error('❌ Error enviando email de bienvenida:', emailError);
+        if (process.env.ENGAGE_ENABLED === 'true') {
+            sendEvent({
+                type: 'prode.welcome',
+                userId: String(user.id),
+                idempotencyKey: `welcome:${user.id}`,
+                payload: { business_context: {} },
+                metadata: buildEngageMetadata(user),
+            }).catch(err => logger.error('Welcome engage failed', { err: err.message }));
+        } else {
+            try {
+                await (0, email_1.sendWelcomeEmail)(user.email, user.nombre);
+                logger.info('Welcome email sent', { email: user.email });
+            } catch (emailError) {
+                logger.error('Welcome email failed', emailError);
+            }
         }
         
         res.json({
@@ -331,9 +327,75 @@ router.post('/complete-registration', rateLimit_1.authLimiter, async (req, res) 
         });
     }
     catch (error) {
-        console.error('Complete registration error:', error);
+        logger.error('Complete registration error', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
+// POST /auth/forgot-password
+router.post('/forgot-password', rateLimit_1.authLimiter, async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ success: false, error: 'Email requerido' });
+
+        const userRes = await connection_1.db.query('SELECT id, nombre FROM users WHERE email = $1', [email]);
+        if (userRes.rows.length === 0) {
+            return res.json({ success: true, message: 'Si el email existe, recibirás un código' });
+        }
+        const user = userRes.rows[0];
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+        await connection_1.db.query(
+            'UPDATE users SET reset_code = $1, reset_code_expires_at = $2 WHERE id = $3',
+            [code, expiresAt, user.id]
+        );
+
+        await (0, email_1.sendEmail)({
+            to: email,
+            subject: 'Código para restablecer tu contraseña — PRODE Caballito',
+            html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:12px;"><h2 style="color:#001A4B;">⚽ PRODE Caballito</h2><p>Hola <strong>${user.nombre}</strong>,</p><p>Tu código para restablecer la contraseña es:</p><div style="background:#001A4B;color:#FFDF00;font-size:36px;font-weight:bold;text-align:center;padding:20px;border-radius:8px;letter-spacing:8px;margin:20px 0;">${code}</div><p style="color:#666;font-size:13px;">Expira en 15 minutos. Si no lo pediste, ignorá este email.</p></div>`,
+        });
+
+        res.json({ success: true, message: 'Si el email existe, recibirás un código' });
+    } catch (error) {
+        logger.error('Forgot password error', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// POST /auth/reset-password
+router.post('/reset-password', rateLimit_1.authLimiter, async (req, res) => {
+    try {
+        const { email, code, newPassword } = req.body;
+        if (!email || !code || !newPassword)
+            return res.status(400).json({ success: false, error: 'email, code y newPassword son requeridos' });
+        if (newPassword.length < 6)
+            return res.status(400).json({ success: false, error: 'La contraseña debe tener al menos 6 caracteres' });
+
+        const userRes = await connection_1.db.query(
+            'SELECT id, reset_code, reset_code_expires_at FROM users WHERE email = $1', [email]
+        );
+        if (userRes.rows.length === 0)
+            return res.status(400).json({ success: false, error: 'Código inválido o expirado' });
+
+        const user = userRes.rows[0];
+        if (!user.reset_code || user.reset_code !== code)
+            return res.status(400).json({ success: false, error: 'Código inválido o expirado' });
+        if (new Date() > new Date(user.reset_code_expires_at))
+            return res.status(400).json({ success: false, error: 'El código expiró. Pedí uno nuevo.' });
+
+        const hash_pass = await (0, utils_1.hashPassword)(newPassword);
+        await connection_1.db.query(
+            'UPDATE users SET hash_pass = $1, reset_code = NULL, reset_code_expires_at = NULL WHERE id = $2',
+            [hash_pass, user.id]
+        );
+
+        res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        logger.error('Reset password error', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 exports.default = router;
 //# sourceMappingURL=auth.js.map
