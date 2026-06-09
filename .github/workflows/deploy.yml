@@ -12,6 +12,11 @@ on:
         required: false
         default: 'false'
         type: string
+      create_chicago_apigw:
+        description: 'Crear/verificar API Gateway prode-hr-api-gw para Chicago/HR'
+        required: false
+        default: 'false'
+        type: string
 
 jobs:
   test:
@@ -86,23 +91,117 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION:    us-east-1
 
-      - name: Reapuntar API Gateway a prode-chicago-api
+      - name: Crear API Gateway para Chicago/HR (solo si se pide explícitamente)
+        if: github.event.inputs.create_chicago_apigw == 'true'
         run: |
           set -e
-          API_ID="t49euho172"
+          REGION="us-east-1"
+          FUNCTION="prode-chicago-api"
+          API_NAME="prode-hr-api-gw"
+          STAGE="prod"
+
+          ACCOUNT_ID=$(aws lambda get-function-configuration \
+            --function-name $FUNCTION --region $REGION \
+            --query 'FunctionArn' --output text | cut -d: -f5)
+
+          LAMBDA_URI="arn:aws:apigateway:${REGION}:lambda:path/2015-03-31/functions/arn:aws:lambda:${REGION}:${ACCOUNT_ID}:function:${FUNCTION}/invocations"
+
+          # Crear si no existe; reutilizar si ya existe
+          EXISTING=$(aws apigateway get-rest-apis --region $REGION \
+            --query "items[?name=='${API_NAME}'].id | [0]" --output text)
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "None" ]; then
+            echo "API Gateway '${API_NAME}' ya existe: $EXISTING"
+            API_ID="$EXISTING"
+          else
+            API_ID=$(aws apigateway create-rest-api \
+              --name "$API_NAME" --region $REGION \
+              --endpoint-configuration "types=REGIONAL" \
+              --query 'id' --output text)
+            echo "Creado: $API_ID"
+          fi
+
+          ROOT_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $REGION \
+            --query 'items[?path==`/`].id | [0]' --output text)
+
+          # Recurso {proxy+} — captura todas las rutas /api/...
+          PROXY_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $REGION \
+            --query 'items[?pathPart==`{proxy+}`].id | [0]' --output text)
+          if [ -z "$PROXY_ID" ] || [ "$PROXY_ID" = "None" ]; then
+            PROXY_ID=$(aws apigateway create-resource \
+              --rest-api-id $API_ID --parent-id $ROOT_ID \
+              --path-part "{proxy+}" --region $REGION \
+              --query 'id' --output text)
+            echo "Recurso {proxy+} creado: $PROXY_ID"
+          fi
+
+          # ANY en {proxy+} → Lambda proxy
+          aws apigateway put-method \
+            --rest-api-id $API_ID --resource-id $PROXY_ID \
+            --http-method ANY --authorization-type NONE \
+            --region $REGION 2>/dev/null || true
+          aws apigateway put-integration \
+            --rest-api-id $API_ID --resource-id $PROXY_ID \
+            --http-method ANY --type AWS_PROXY --integration-http-method POST \
+            --uri $LAMBDA_URI --region $REGION
+
+          # ANY en root / → Lambda proxy (necesario para rutas sin path)
+          aws apigateway put-method \
+            --rest-api-id $API_ID --resource-id $ROOT_ID \
+            --http-method ANY --authorization-type NONE \
+            --region $REGION 2>/dev/null || true
+          aws apigateway put-integration \
+            --rest-api-id $API_ID --resource-id $ROOT_ID \
+            --http-method ANY --type AWS_PROXY --integration-http-method POST \
+            --uri $LAMBDA_URI --region $REGION
+
+          # Deploy al stage
+          aws apigateway create-deployment \
+            --rest-api-id $API_ID --stage-name $STAGE --region $REGION
+
+          # Permiso Lambda (idempotente)
+          aws lambda add-permission \
+            --function-name $FUNCTION \
+            --statement-id "agw-invoke-${API_ID}" \
+            --action lambda:InvokeFunction \
+            --principal apigateway.amazonaws.com \
+            --source-arn "arn:aws:execute-api:${REGION}:${ACCOUNT_ID}:${API_ID}/*/*" \
+            --region $REGION 2>/dev/null && echo "Permiso Lambda añadido" || echo "Permiso Lambda ya existía (ok)"
+
+          API_URL="https://${API_ID}.execute-api.${REGION}.amazonaws.com/${STAGE}"
+          echo ""
+          echo "✅ API Gateway lista: $API_URL"
+          echo "📋 Actualizar VITE_API_URL en Chicago FE a: ${API_URL}/api"
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION:    us-east-1
+
+      - name: Reapuntar API Gateway prode-hr-api-gw a prode-chicago-api
+        run: |
+          set -e
           REGION="us-east-1"
           STAGE="prod"
           FUNCTION="prode-chicago-api"
+          API_NAME="prode-hr-api-gw"
 
-          # Obtener el account ID desde el ARN del Lambda
+          # Buscar API Gateway de Chicago/HR por nombre
+          API_ID=$(aws apigateway get-rest-apis --region $REGION \
+            --query "items[?name=='${API_NAME}'].id | [0]" --output text)
+
+          if [ -z "$API_ID" ] || [ "$API_ID" = "None" ]; then
+            echo "⚠️  API Gateway '${API_NAME}' no existe aún. Ejecutar con create_chicago_apigw=true primero."
+            exit 0
+          fi
+
           ACCOUNT_ID=$(aws lambda get-function-configuration \
             --function-name $FUNCTION --region $REGION \
             --query 'FunctionArn' --output text | cut -d: -f5)
 
           NEW_URI="arn:aws:apigateway:${REGION}:lambda:path/2015-03-31/functions/arn:aws:lambda:${REGION}:${ACCOUNT_ID}:function:${FUNCTION}/invocations"
-          echo "Target URI: $NEW_URI"
+          echo "API Gateway: $API_ID  →  $FUNCTION"
 
-          # Dar permiso al API Gateway para invocar prode-chicago-api (idempotente)
+          # Permiso Lambda (idempotente)
           aws lambda add-permission \
             --function-name $FUNCTION \
             --statement-id "agw-invoke-${API_ID}" \
@@ -111,7 +210,7 @@ jobs:
             --source-arn "arn:aws:execute-api:${REGION}:${ACCOUNT_ID}:${API_ID}/*/*" \
             --region $REGION 2>/dev/null && echo "Permiso añadido" || echo "Permiso ya existía (ok)"
 
-          # Recorrer todos los recursos y actualizar integraciones que NO apunten a prode-chicago-api
+          # Recorrer recursos y asegurarse de que apunten a prode-chicago-api
           RESOURCE_IDS=$(aws apigateway get-resources \
             --rest-api-id $API_ID --region $REGION \
             --query 'items[*].id' --output text)
@@ -128,18 +227,15 @@ jobs:
                 --http-method "$METHOD" --region $REGION \
                 --query 'uri' --output text 2>/dev/null || echo "")
 
-              # Diagnóstico: mostrar URI actual de cada integración
               echo "  $RESOURCE_ID $METHOD → ${CURRENT_URI:-<sin integración Lambda>}"
 
-              # Actualizar solo integraciones Lambda de Chicago: no tocar prode-api (prodecaballito.com)
               if echo "$CURRENT_URI" | grep -q ":function:" && \
-                 ! echo "$CURRENT_URI" | grep -q ":function:prode-chicago-api" && \
-                 ! echo "$CURRENT_URI" | grep -q ":function:prode-api"; then
+                 ! echo "$CURRENT_URI" | grep -q ":function:prode-chicago-api"; then
                 aws apigateway update-integration \
                   --rest-api-id $API_ID --resource-id "$RESOURCE_ID" \
                   --http-method "$METHOD" --region $REGION \
                   --patch-operations "[{\"op\":\"replace\",\"path\":\"/uri\",\"value\":\"${NEW_URI}\"}]"
-                echo "  ✓ Actualizado $RESOURCE_ID $METHOD → prode-chicago-api"
+                echo "  ✓ Actualizado → prode-chicago-api"
                 UPDATED=$((UPDATED + 1))
               fi
             done
