@@ -96,7 +96,7 @@ describe('POST /api/voice', () => {
 
     expect(res.text).toContain('<Gather')
     expect(res.text).toContain('<Say')
-    expect(res.text).toContain('Prode Nueva Chicago')
+    expect(res.text).toContain('Prode High Rolling')
   })
 
   it('el Gather apunta a /api/voice/menu', async () => {
@@ -138,7 +138,7 @@ describe('POST /api/voice/menu', () => {
     const res = await twilioPost(buildApp(), '/api/voice/menu')
       .send({ Digits: '2' })
 
-    expect(res.text).toMatch(/ingresá a Prode Nueva Chicago/i)
+    expect(res.text).toMatch(/ingresá a Prode High Rolling/i)
     expect(res.text).toMatch(/ranking en vivo/i)
   })
 
