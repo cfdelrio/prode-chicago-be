@@ -166,8 +166,8 @@ async function sendWeeklyEmailBatch(testEmail = null) {
     const pendingByPlanilla = {};
     for (const r of pendingCountsRes.rows) pendingByPlanilla[r.planilla_id] = parseInt(r.pending) || 0;
 
-    const appUrl = 'https://chicago.prodecaballito.com/apuestas';
-    const unsubscribeUrl = process.env.FRONTEND_URL || 'https://chicago.prodecaballito.com';
+    const appUrl = 'https://hr.prodecaballito.com/apuestas';
+    const unsubscribeUrl = process.env.FRONTEND_URL || 'https://hr.prodecaballito.com';
     let sent = 0, failed = 0;
 
     if (process.env.ENGAGE_ENABLED === 'true') {

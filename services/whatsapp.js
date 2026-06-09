@@ -14,19 +14,19 @@ const WHITELIST = process.env.WHATSAPP_WHITELIST
 
 // Templates aprobados por Meta via Twilio Content API
 const TEMPLATES = {
-    // Body: "🔥 ¡Sos el nuevo líder del PRODE Nueva Chicago!\nCon {{1}} puntos estás en el puesto #1.\n\n¡No lo sueltes! 👉 chicago.prodecaballito.com/ranking"
+    // Body: "🔥 ¡Sos el nuevo líder del PRODE High Rolling!\nCon {{1}} puntos estás en el puesto #1.\n\n¡No lo sueltes! 👉 hr.prodecaballito.com/ranking"
     // Variables: { 1: puntos }
     prode_nuevo_lider: 'HX3d2e4229b56b20d222ae85b64a2e607e',
 
-    // Body: "⚽ {{1}} {{2}}-{{3}} {{4}}\n\n{{5}}\n🏆 Estás #{{6}} en el ranking\n\n👉 chicago.prodecaballito.com/ranking"
+    // Body: "⚽ {{1}} {{2}}-{{3}} {{4}}\n\n{{5}}\n🏆 Estás #{{6}} en el ranking\n\n👉 hr.prodecaballito.com/ranking"
     // Variables: { 1: equipo_local, 2: goles_local, 3: goles_visitante, 4: equipo_visitante, 5: betLine, 6: posicion }
     prode_resultado_partido: 'HX7ed5ef7d53402b094a81ecd8d4cbf5af',
 
-    // Body: "🏆 ¡{{1}} ganó {{2}}!\nCon {{3}} puntos exactos.\n\n👉 chicago.prodecaballito.com/ranking"
+    // Body: "🏆 ¡{{1}} ganó {{2}}!\nCon {{3}} puntos exactos.\n\n👉 hr.prodecaballito.com/ranking"
     // Variables: { 1: nombre_ganador, 2: nombre_fecha, 3: puntos }
     prode_ganador_fecha: 'HX037ab7e8789f1de1575a26737ff8a233',
 
-    // Body: "📣 Aviso del Prode Nueva Chicago\n\n¡Hola {{1}}!\n\n{{2}}\n\n👉 chicago.prodecaballito.com"
+    // Body: "📣 Aviso del Prode High Rolling\n\n¡Hola {{1}}!\n\n{{2}}\n\n👉 hr.prodecaballito.com"
     // Variables: { 1: nombre_usuario, 2: mensaje_admin }
     // Pendiente de aprobación por Meta. Hasta tener el SID real, se lee de env BROADCAST_TEMPLATE_SID.
     prode_broadcast_aviso: process.env.BROADCAST_TEMPLATE_SID || null,

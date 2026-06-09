@@ -6,7 +6,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 if (!RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY not configured — email sending disabled');
 }
-const FROM_EMAIL = 'noreply@chicago.prodecaballito.com';
+const FROM_EMAIL = 'noreply@hr.prodecaballito.com';
 const sendEmail = async ({ to, subject, html }) => {
     if (!RESEND_API_KEY) {
         console.warn('[email] Skipping email send — RESEND_API_KEY not configured');
@@ -18,7 +18,7 @@ const sendEmail = async ({ to, subject, html }) => {
             'Authorization': `Bearer ${RESEND_API_KEY}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ from: `PRODE Nueva Chicago <${FROM_EMAIL}>`, to, subject, html }),
+        body: JSON.stringify({ from: `PRODE High Rolling <${FROM_EMAIL}>`, to, subject, html }),
     });
     if (!res.ok) {
         const err = await res.text();
@@ -70,7 +70,7 @@ const sendRankingUpdateEmail = async (userEmail, userName, newPosition, previous
       <tr><td style="background-color:#001A4B;padding:32px 32px 24px;text-align:center;">
         <p style="margin:0;font-size:48px;line-height:1;">${headerEmoji}</p>
         <p style="margin:10px 0 4px;font-size:22px;font-weight:900;color:#FFCC00;font-family:Arial,sans-serif;letter-spacing:1px;">${headerTitle}</p>
-        <p style="margin:0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">PRODE Nueva Chicago</p>
+        <p style="margin:0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">PRODE High Rolling</p>
       </td></tr>
       <!-- Body -->
       <tr><td style="background-color:${bgColor};padding:32px 32px 28px;">
@@ -101,13 +101,13 @@ const sendRankingUpdateEmail = async (userEmail, userName, newPosition, previous
         </table>
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr><td align="center">
-            <a href="https://chicago.prodecaballito.com/ranking" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver ranking completo →</a>
+            <a href="https://hr.prodecaballito.com/ranking" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver ranking completo →</a>
           </td></tr>
         </table>
       </td></tr>
       <!-- Footer -->
       <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">chicago.prodecaballito.com</p>
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">hr.prodecaballito.com</p>
       </td></tr>
     </table>
   </td></tr>
@@ -137,7 +137,7 @@ const sendWelcomeEmail = async (email, nombre) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bienvenido - PRODE Nueva Chicago</title>
+  <title>Bienvenido - PRODE High Rolling</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
 
@@ -173,7 +173,7 @@ const sendWelcomeEmail = async (email, nombre) => {
 
   <!-- ── BLOQUE 2: HERO (foto estadio real + overlay oscuro) ── -->
   <tr>
-    <td bgcolor="#0a1628" style="background-image:url('https://chicago.prodecaballito.com/ChatGPT%20Image%20Apr%2025%2C%202026%2C%2005_00_01%20PM.png');background-size:cover;background-position:center top;background-color:#0a1628;">
+    <td bgcolor="#0a1628" style="background-image:url('https://hr.prodecaballito.com/ChatGPT%20Image%20Apr%2025%2C%202026%2C%2005_00_01%20PM.png');background-size:cover;background-position:center top;background-color:#0a1628;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td style="background:linear-gradient(to bottom,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0.72) 100%);padding:48px 28px 44px;">
@@ -361,7 +361,7 @@ const sendWelcomeEmail = async (email, nombre) => {
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td align="center">
-            <a href="https://chicago.prodecaballito.com" style="display:block;background:#F47C00;color:#fff;text-decoration:none;padding:16px 20px;border-radius:8px;font-size:17px;font-weight:900;font-family:'Arial Black',Arial,sans-serif;text-transform:uppercase;letter-spacing:0.5px;text-align:center;">
+            <a href="https://hr.prodecaballito.com" style="display:block;background:#F47C00;color:#fff;text-decoration:none;padding:16px 20px;border-radius:8px;font-size:17px;font-weight:900;font-family:'Arial Black',Arial,sans-serif;text-transform:uppercase;letter-spacing:0.5px;text-align:center;">
               ⚽ &nbsp;EMPEZAR A JUGAR AHORA →
             </a>
           </td>
@@ -391,8 +391,8 @@ const sendWelcomeEmail = async (email, nombre) => {
   <!-- ── BLOQUE 8: FOOTER LEGAL (blanco) ── -->
   <tr>
     <td style="background:#fff;padding:16px 20px;text-align:center;border-top:1px solid #eee;">
-      <div style="color:#666;font-size:12px;font-family:Arial,sans-serif;margin-bottom:5px;">Con cariño, el equipo de <strong>PRODE Nueva Chicago</strong> ❤️</div>
-      <div style="color:#aaa;font-size:10px;font-family:Arial,sans-serif;">Si no querés recibir más correos, podés <a href="https://chicago.prodecaballito.com" style="color:#aaa;text-decoration:underline;">darte de baja aquí</a>.</div>
+      <div style="color:#666;font-size:12px;font-family:Arial,sans-serif;margin-bottom:5px;">Con cariño, el equipo de <strong>PRODE High Rolling</strong> ❤️</div>
+      <div style="color:#aaa;font-size:10px;font-family:Arial,sans-serif;">Si no querés recibir más correos, podés <a href="https://hr.prodecaballito.com" style="color:#aaa;text-decoration:underline;">darte de baja aquí</a>.</div>
     </td>
   </tr>
 
@@ -417,18 +417,18 @@ const sendVerificationCode = async (email, nombre, code) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Código de Verificación - PRODE Nueva Chicago</title>
+  <title>Código de Verificación - PRODE High Rolling</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
   <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #0042A5 0%, #001A4B 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-      <h1 style="color: white; margin: 0; font-size: 28px;">⚽ PRODE Nueva Chicago</h1>
+      <h1 style="color: white; margin: 0; font-size: 28px;">⚽ PRODE High Rolling</h1>
       <p style="color: #FFDF00; margin: 10px 0 0 0; font-size: 14px;">⚡ Mundial 2026</p>
     </div>
     <div style="background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
       <h2 style="color: #1F2937; margin-top: 0;">¡Hola ${nombre}! 👋</h2>
       <p style="color: #4B5563; line-height: 1.6;">
-        Gracias por registrarte en PRODE Nueva Chicago. Para completar tu registro, 
+        Gracias por registrarte en PRODE High Rolling. Para completar tu registro, 
         usa el siguiente código de verificación:
       </p>
       <div style="background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); padding: 30px; margin: 30px 0; text-align: center; border-radius: 12px; border: 3px dashed #0042A5;">
@@ -449,7 +449,7 @@ const sendVerificationCode = async (email, nombre, code) => {
       </p>
     </div>
     <div style="text-align: center; padding: 20px; color: #9CA3AF; font-size: 12px;">
-      <p style="margin: 5px 0;">© 2026 PRODE Nueva Chicago - Qatar 2026</p>
+      <p style="margin: 5px 0;">© 2026 PRODE High Rolling - Qatar 2026</p>
       <p style="margin: 5px 0;">Este es un email automático, por favor no respondas.</p>
     </div>
   </div>
@@ -458,7 +458,7 @@ const sendVerificationCode = async (email, nombre, code) => {
   `;
     await (0, exports.sendEmail)({
         to: email,
-        subject: '🎯 Código de Verificación - PRODE Nueva Chicago',
+        subject: '🎯 Código de Verificación - PRODE High Rolling',
         html,
     });
 };
@@ -486,7 +486,7 @@ const sendReminderEmail = async (reminder) => {
       <!-- Header -->
       <tr><td align="center" style="padding-bottom:24px;">
         <p style="margin:0;font-size:40px;line-height:1;">⏰</p>
-        <h1 style="color:#ffffff;margin:10px 0 0;font-size:26px;font-weight:800;font-family:Arial,sans-serif;">PRODE Nueva Chicago</h1>
+        <h1 style="color:#ffffff;margin:10px 0 0;font-size:26px;font-weight:800;font-family:Arial,sans-serif;">PRODE High Rolling</h1>
         <p style="color:#FFDF00;margin:6px 0 0;font-size:14px;font-weight:600;font-family:Arial,sans-serif;">
           Recordatorio — ${remind_minutes} min antes del partido
         </p>
@@ -540,7 +540,7 @@ const sendReminderEmail = async (reminder) => {
             <!-- CTA -->
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
               <tr><td align="center">
-                <a href="https://chicago.prodecaballito.com/apuestas"
+                <a href="https://hr.prodecaballito.com/apuestas"
                    style="display:inline-block;background-color:#0042A5;color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:50px;font-size:17px;font-weight:700;font-family:Arial,sans-serif;">
                   ⚽ Ver mis pronósticos
                 </a>
@@ -548,7 +548,7 @@ const sendReminderEmail = async (reminder) => {
             </table>
 
             <p style="color:#9CA3AF;font-size:12px;text-align:center;margin:0;font-family:Arial,sans-serif;">
-              Con cariño, el equipo de <strong>PRODE Nueva Chicago</strong> 💙
+              Con cariño, el equipo de <strong>PRODE High Rolling</strong> 💙
             </p>
           </td></tr>
         </table>
@@ -557,7 +557,7 @@ const sendReminderEmail = async (reminder) => {
       <!-- Footer -->
       <tr><td align="center" style="padding-top:20px;">
         <p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0;font-family:Arial,sans-serif;">
-          © 2026 PRODE Nueva Chicago · <a href="https://chicago.prodecaballito.com" style="color:rgba(255,255,255,0.6);text-decoration:none;">chicago.prodecaballito.com</a>
+          © 2026 PRODE High Rolling · <a href="https://hr.prodecaballito.com" style="color:rgba(255,255,255,0.6);text-decoration:none;">hr.prodecaballito.com</a>
         </p>
       </td></tr>
 
@@ -568,7 +568,7 @@ const sendReminderEmail = async (reminder) => {
 
     await (0, exports.sendEmail)({
         to: user_email,
-        subject: `⏰ En ${remind_minutes} min: ${home_team} vs ${away_team} — PRODE Nueva Chicago`,
+        subject: `⏰ En ${remind_minutes} min: ${home_team} vs ${away_team} — PRODE High Rolling`,
         html,
     });
 };
@@ -608,7 +608,7 @@ const sendResultEmail = async ({ userEmail, userName, homeTeam, awayTeam, result
     <table width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
       <!-- Header -->
       <tr><td style="background-color:#001A4B;padding:28px 32px;text-align:center;">
-        <p style="margin:0;font-size:24px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;letter-spacing:1px;">⚽ PRODE Nueva Chicago</p>
+        <p style="margin:0;font-size:24px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;letter-spacing:1px;">⚽ PRODE High Rolling</p>
         <p style="margin:6px 0 0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">Resultado publicado</p>
       </td></tr>
       <!-- Score banner -->
@@ -624,13 +624,13 @@ const sendResultEmail = async ({ userEmail, userName, homeTeam, awayTeam, result
         ${rankingPanel}
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr><td align="center">
-            <a href="https://chicago.prodecaballito.com/ranking" style="display:inline-block;background-color:#0042A5;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 32px;border-radius:50px;">Ver ranking completo →</a>
+            <a href="https://hr.prodecaballito.com/ranking" style="display:inline-block;background-color:#0042A5;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 32px;border-radius:50px;">Ver ranking completo →</a>
           </td></tr>
         </table>
       </td></tr>
       <!-- Footer -->
       <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">chicago.prodecaballito.com</p>
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">hr.prodecaballito.com</p>
       </td></tr>
     </table>
   </td></tr>
@@ -639,7 +639,7 @@ const sendResultEmail = async ({ userEmail, userName, homeTeam, awayTeam, result
 
     await sendEmail({
         to: userEmail,
-        subject: `⚽ Resultado: ${homeTeam} ${resultLocal}-${resultVisitante} ${awayTeam} — PRODE Nueva Chicago`,
+        subject: `⚽ Resultado: ${homeTeam} ${resultLocal}-${resultVisitante} ${awayTeam} — PRODE High Rolling`,
         html,
     });
 };
@@ -655,7 +655,7 @@ const sendNewLeaderEmail = async ({ userEmail, userName, puntos, homeTeam, awayT
       <tr><td style="background-color:#001A4B;padding:32px 32px 24px;text-align:center;">
         <p style="margin:0;font-size:48px;line-height:1;">🔥</p>
         <p style="margin:10px 0 4px;font-size:22px;font-weight:900;color:#FFCC00;font-family:Arial,sans-serif;letter-spacing:1px;">¡NUEVO LÍDER!</p>
-        <p style="margin:0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">PRODE Nueva Chicago</p>
+        <p style="margin:0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">PRODE High Rolling</p>
       </td></tr>
       <!-- Banner resultado -->
       <tr><td style="background-color:#FFCC00;padding:14px 32px;text-align:center;">
@@ -665,7 +665,7 @@ const sendNewLeaderEmail = async ({ userEmail, userName, puntos, homeTeam, awayT
       <tr><td style="background-color:#FFFFFF;padding:32px 32px 28px;">
         <p style="margin:0 0 8px;font-size:18px;font-weight:900;color:#001A4B;font-family:Arial,sans-serif;">¡Hola, ${userName}! 👋</p>
         <p style="margin:0 0 24px;font-size:15px;color:#374151;font-family:Arial,sans-serif;line-height:1.6;">
-          Después del resultado de hoy, <strong>subiste al primer puesto</strong> del ranking de PRODE Nueva Chicago. ¡Bien jugado!
+          Después del resultado de hoy, <strong>subiste al primer puesto</strong> del ranking de PRODE High Rolling. ¡Bien jugado!
         </p>
         <!-- Podio card -->
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
@@ -681,13 +681,13 @@ const sendNewLeaderEmail = async ({ userEmail, userName, puntos, homeTeam, awayT
         </p>
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr><td align="center">
-            <a href="https://chicago.prodecaballito.com/ranking" style="display:inline-block;background-color:#0042A5;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver el ranking completo →</a>
+            <a href="https://hr.prodecaballito.com/ranking" style="display:inline-block;background-color:#0042A5;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver el ranking completo →</a>
           </td></tr>
         </table>
       </td></tr>
       <!-- Footer -->
       <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">chicago.prodecaballito.com</p>
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">hr.prodecaballito.com</p>
       </td></tr>
     </table>
   </td></tr>
@@ -696,7 +696,7 @@ const sendNewLeaderEmail = async ({ userEmail, userName, puntos, homeTeam, awayT
 
     await sendEmail({
         to: userEmail,
-        subject: `🔥 ¡Sos el nuevo líder del PRODE Nueva Chicago con ${puntos} pts!`,
+        subject: `🔥 ¡Sos el nuevo líder del PRODE High Rolling con ${puntos} pts!`,
         html,
     });
 };
@@ -863,7 +863,7 @@ const sendWeeklyEmail = async (email, {
     const upcomingHtml = buildUpcomingSection(upcomingMatches, appUrl);
 
     // Determinar segmento para subject dinámico
-    let emailSubject = `⚽ Tu resumen semanal — PRODE Nueva Chicago`;
+    let emailSubject = `⚽ Tu resumen semanal — PRODE High Rolling`;
     if (userPosition === 1) {
       emailSubject = `👑 Seguís primero, ${userName}. Esta semana podés agrandar la ventaja.`;
     } else if (userPosition <= 3) {
@@ -893,7 +893,7 @@ const sendWeeklyEmail = async (email, {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tu resumen semanal — PRODE Nueva Chicago</title>
+  <title>Tu resumen semanal — PRODE High Rolling</title>
 </head>
 <body style="margin:0;padding:0;background-color:#eef2f7;font-family:Arial,Helvetica,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eef2f7">
@@ -908,7 +908,7 @@ const sendWeeklyEmail = async (email, {
               <tr>
                 <td>
                   <span style="font-size:22px;vertical-align:middle;">⚽</span>
-                  <strong style="font-size:17px;color:#001A4B;font-family:Arial,sans-serif;vertical-align:middle;"> PRODE Nueva Chicago</strong>
+                  <strong style="font-size:17px;color:#001A4B;font-family:Arial,sans-serif;vertical-align:middle;"> PRODE High Rolling</strong>
                 </td>
                 <td align="right">
                   <p style="margin:0;font-size:11px;color:#9ca3af;font-family:Arial,sans-serif;">Resumen semanal</p>
@@ -983,12 +983,12 @@ const sendWeeklyEmail = async (email, {
         <tr>
           <td align="center" bgcolor="#f9fafb" style="padding:22px 24px 26px;border-top:1px solid #f0f4fb;">
             <p style="margin:0;font-size:13px;color:#4b5563;font-family:Arial,sans-serif;line-height:1.7;">
-              Gracias por jugar en <strong>PRODE Nueva Chicago</strong> 💙<br>Esta semana puede ser la tuya.
+              Gracias por jugar en <strong>PRODE High Rolling</strong> 💙<br>Esta semana puede ser la tuya.
             </p>
             <p style="margin:14px 0 0;font-size:11px;color:#9ca3af;font-family:Arial,sans-serif;">
               <a href="${unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">Cancelar suscripción</a>
               &nbsp;&middot;&nbsp;
-              <a href="https://chicago.prodecaballito.com" style="color:#9ca3af;text-decoration:none;">chicago.prodecaballito.com</a>
+              <a href="https://hr.prodecaballito.com" style="color:#9ca3af;text-decoration:none;">hr.prodecaballito.com</a>
             </p>
           </td>
         </tr>
@@ -1045,7 +1045,7 @@ const sendPostMatchdayEmail = async ({ userEmail, userName, matchdayName, points
       <tr><td style="background-color:#001A4B;padding:32px 32px 24px;text-align:center;">
         <p style="margin:0;font-size:40px;line-height:1;">${headerEmoji}</p>
         <p style="margin:10px 0 4px;font-size:20px;font-weight:900;color:#FFCC00;font-family:Arial,sans-serif;letter-spacing:1px;">${headerTitle}</p>
-        <p style="margin:0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">PRODE Nueva Chicago</p>
+        <p style="margin:0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">PRODE High Rolling</p>
       </td></tr>
       <!-- Body -->
       <tr><td style="background-color:${bodyColor};padding:32px 32px 28px;">
@@ -1084,13 +1084,13 @@ const sendPostMatchdayEmail = async ({ userEmail, userName, matchdayName, points
         </table>
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr><td align="center">
-            <a href="https://chicago.prodecaballito.com/ranking" style="display:inline-block;background-color:#0042A5;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver el ranking completo →</a>
+            <a href="https://hr.prodecaballito.com/ranking" style="display:inline-block;background-color:#0042A5;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver el ranking completo →</a>
           </td></tr>
         </table>
       </td></tr>
       <!-- Footer -->
       <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">chicago.prodecaballito.com</p>
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">hr.prodecaballito.com</p>
       </td></tr>
     </table>
   </td></tr>
@@ -1141,7 +1141,7 @@ const sendPlanillaCierreEmail = async ({ userEmail, userName, planillaNombre, to
   <tr><td align="center" style="padding:32px 16px;">
     <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
       <tr><td style="background-color:#001A4B;padding:28px 32px 20px;text-align:center;">
-        <p style="margin:0;font-size:22px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;">⚽ PRODE Nueva Chicago</p>
+        <p style="margin:0;font-size:22px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;">⚽ PRODE High Rolling</p>
         <p style="margin:6px 0 0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">${torneoName}</p>
       </td></tr>
       <tr><td style="background-color:${headerBg};padding:16px 32px;text-align:center;">
@@ -1164,12 +1164,12 @@ const sendPlanillaCierreEmail = async ({ userEmail, userName, planillaNombre, to
         </table>
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
           <tr><td align="center">
-            <a href="https://chicago.prodecaballito.com/planillas" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver mi planilla →</a>
+            <a href="https://hr.prodecaballito.com/planillas" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver mi planilla →</a>
           </td></tr>
         </table>
       </td></tr>
       <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">chicago.prodecaballito.com · Este es tu resumen de planilla al cierre del torneo</p>
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">hr.prodecaballito.com · Este es tu resumen de planilla al cierre del torneo</p>
       </td></tr>
     </table>
   </td></tr>
@@ -1198,7 +1198,7 @@ const sendBetConfirmationEmail = async ({ userEmail, userName, planillaNombre, t
   <tr><td align="center" style="padding:32px 16px;">
     <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
       <tr><td style="background-color:#001A4B;padding:28px 32px 20px;text-align:center;">
-        <p style="margin:0;font-size:22px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;">⚽ PRODE Nueva Chicago</p>
+        <p style="margin:0;font-size:22px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;">⚽ PRODE High Rolling</p>
         <p style="margin:6px 0 0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">${torneoName}</p>
       </td></tr>
       <tr><td style="background-color:#DCFCE7;padding:16px 32px;text-align:center;">
@@ -1222,12 +1222,12 @@ const sendBetConfirmationEmail = async ({ userEmail, userName, planillaNombre, t
         </div>
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
           <tr><td align="center">
-            <a href="https://chicago.prodecaballito.com/apuestas" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver mi planilla →</a>
+            <a href="https://hr.prodecaballito.com/apuestas" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver mi planilla →</a>
           </td></tr>
         </table>
       </td></tr>
       <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">chicago.prodecaballito.com · Comprobante de pronósticos</p>
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">hr.prodecaballito.com · Comprobante de pronósticos</p>
       </td></tr>
     </table>
   </td></tr>
@@ -1268,7 +1268,7 @@ const sendPlanillaGeneralEmail = async ({ userEmail, userName, torneoName, match
   <tr><td align="center" style="padding:32px 16px;">
     <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
       <tr><td style="background-color:#001A4B;padding:28px 32px 20px;text-align:center;">
-        <p style="margin:0;font-size:22px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;">⚽ PRODE Nueva Chicago</p>
+        <p style="margin:0;font-size:22px;font-weight:900;color:#FFFFFF;font-family:Arial,sans-serif;">⚽ PRODE High Rolling</p>
         <p style="margin:6px 0 0;font-size:13px;color:#93C5FD;font-family:Arial,sans-serif;">${torneoName} — Las apuestas cerraron</p>
       </td></tr>
       <tr><td style="background-color:#FFFFFF;padding:28px 32px;">
@@ -1286,12 +1286,12 @@ const sendPlanillaGeneralEmail = async ({ userEmail, userName, torneoName, match
         ${hasMore ? `<p style="margin:12px 0 0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">* Se muestran ${MAX_COLS} participantes. Ver la planilla completa en la app.</p>` : ''}
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
           <tr><td align="center">
-            <a href="https://chicago.prodecaballito.com/matriz" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver la matriz completa →</a>
+            <a href="https://hr.prodecaballito.com/matriz" style="display:inline-block;background-color:#001A4B;color:#FFFFFF;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;padding:14px 36px;border-radius:50px;">Ver la matriz completa →</a>
           </td></tr>
         </table>
       </td></tr>
       <tr><td style="background-color:#F8FAFC;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">chicago.prodecaballito.com · Planilla general al cierre del torneo</p>
+        <p style="margin:0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">hr.prodecaballito.com · Planilla general al cierre del torneo</p>
       </td></tr>
     </table>
   </td></tr>
@@ -1311,7 +1311,7 @@ const sendPlanillaDeletedEmail = async ({ userEmail, userName, planillaNombre })
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
         <tr><td style="background:#001A4B;padding:24px 32px;">
-          <p style="margin:0;font-size:20px;font-weight:bold;color:#FFDF00;">⚽ PRODE Nueva Chicago</p>
+          <p style="margin:0;font-size:20px;font-weight:bold;color:#FFDF00;">⚽ PRODE High Rolling</p>
         </td></tr>
         <tr><td style="padding:32px;">
           <p style="font-size:16px;color:#333;margin:0 0 16px;">Hola <strong>${firstName}</strong>,</p>
@@ -1321,12 +1321,12 @@ const sendPlanillaDeletedEmail = async ({ userEmail, userName, planillaNombre })
           <p style="font-size:14px;color:#555;margin:0 0 24px;">
             Si tenés dudas o creés que fue un error, escribinos por WhatsApp.
           </p>
-          <a href="https://chicago.prodecaballito.com" style="display:inline-block;background:#001A4B;color:#FFDF00;text-decoration:none;font-size:14px;font-weight:bold;padding:12px 28px;border-radius:50px;">
+          <a href="https://hr.prodecaballito.com" style="display:inline-block;background:#001A4B;color:#FFDF00;text-decoration:none;font-size:14px;font-weight:bold;padding:12px 28px;border-radius:50px;">
             Ir al PRODE →
           </a>
         </td></tr>
         <tr><td style="padding:16px 32px;background:#f8f8f8;border-top:1px solid #eee;">
-          <p style="font-size:11px;color:#999;margin:0;">© ${new Date().getFullYear()} PRODE Nueva Chicago · noreply@chicago.prodecaballito.com</p>
+          <p style="font-size:11px;color:#999;margin:0;">© ${new Date().getFullYear()} PRODE High Rolling · noreply@hr.prodecaballito.com</p>
         </td></tr>
       </table>
     </td></tr>
