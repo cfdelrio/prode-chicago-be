@@ -82,3 +82,68 @@ jobs:
           AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION:    us-east-1
+
+      - name: Reapuntar API Gateway a prode-chicago-api
+        run: |
+          set -e
+          API_ID="t49euho172"
+          REGION="us-east-1"
+          STAGE="prod"
+          FUNCTION="prode-chicago-api"
+
+          # Obtener el account ID desde el ARN del Lambda
+          ACCOUNT_ID=$(aws lambda get-function-configuration \
+            --function-name $FUNCTION --region $REGION \
+            --query 'FunctionArn' --output text | cut -d: -f5)
+
+          NEW_URI="arn:aws:apigateway:${REGION}:lambda:path/2015-03-31/functions/arn:aws:lambda:${REGION}:${ACCOUNT_ID}:function:${FUNCTION}/invocations"
+          echo "Target URI: $NEW_URI"
+
+          # Dar permiso al API Gateway para invocar prode-chicago-api (idempotente)
+          aws lambda add-permission \
+            --function-name $FUNCTION \
+            --statement-id "agw-invoke-${API_ID}" \
+            --action lambda:InvokeFunction \
+            --principal apigateway.amazonaws.com \
+            --source-arn "arn:aws:execute-api:${REGION}:${ACCOUNT_ID}:${API_ID}/*/*" \
+            --region $REGION 2>/dev/null && echo "Permiso añadido" || echo "Permiso ya existía (ok)"
+
+          # Recorrer todos los recursos y actualizar integraciones que apunten al lambda viejo
+          RESOURCE_IDS=$(aws apigateway get-resources \
+            --rest-api-id $API_ID --region $REGION \
+            --query 'items[*].id' --output text)
+
+          UPDATED=0
+          for RESOURCE_ID in $RESOURCE_IDS; do
+            METHODS=$(aws apigateway get-resource \
+              --rest-api-id $API_ID --resource-id "$RESOURCE_ID" --region $REGION \
+              --query 'keys(resourceMethods)' --output text 2>/dev/null || echo "")
+
+            for METHOD in $METHODS; do
+              CURRENT_URI=$(aws apigateway get-integration \
+                --rest-api-id $API_ID --resource-id "$RESOURCE_ID" \
+                --http-method "$METHOD" --region $REGION \
+                --query 'uri' --output text 2>/dev/null || echo "")
+
+              if echo "$CURRENT_URI" | grep -q ":function:prode-api/"; then
+                aws apigateway update-integration \
+                  --rest-api-id $API_ID --resource-id "$RESOURCE_ID" \
+                  --http-method "$METHOD" --region $REGION \
+                  --patch-operations "[{\"op\":\"replace\",\"path\":\"/uri\",\"value\":\"${NEW_URI}\"}]"
+                echo "  ✓ Actualizado $RESOURCE_ID $METHOD"
+                UPDATED=$((UPDATED + 1))
+              fi
+            done
+          done
+
+          if [ $UPDATED -gt 0 ]; then
+            aws apigateway create-deployment \
+              --rest-api-id $API_ID --stage-name $STAGE --region $REGION
+            echo "✅ API Gateway reapuntado a $FUNCTION ($UPDATED integraciones)"
+          else
+            echo "ℹ️  API Gateway ya apunta a $FUNCTION, nada que cambiar"
+          fi
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION:    us-east-1
