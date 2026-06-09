@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      restore_caballito_integration:
+        description: 'Restaurar integración qc0bh1 → prode-api (prodecaballito.com)'
+        required: false
+        default: 'false'
+        type: string
 
 jobs:
   test:
@@ -125,9 +131,10 @@ jobs:
               # Diagnóstico: mostrar URI actual de cada integración
               echo "  $RESOURCE_ID $METHOD → ${CURRENT_URI:-<sin integración Lambda>}"
 
-              # Actualizar si es integración Lambda y NO apunta ya a prode-chicago-api
-              # Captura tanto :function:prode-api/ como :function:prode-api:alias/invocations
-              if echo "$CURRENT_URI" | grep -q ":function:" && ! echo "$CURRENT_URI" | grep -q ":function:prode-chicago-api"; then
+              # Actualizar solo integraciones Lambda de Chicago: no tocar prode-api (prodecaballito.com)
+              if echo "$CURRENT_URI" | grep -q ":function:" && \
+                 ! echo "$CURRENT_URI" | grep -q ":function:prode-chicago-api" && \
+                 ! echo "$CURRENT_URI" | grep -q ":function:prode-api"; then
                 aws apigateway update-integration \
                   --rest-api-id $API_ID --resource-id "$RESOURCE_ID" \
                   --http-method "$METHOD" --region $REGION \
@@ -145,6 +152,35 @@ jobs:
           else
             echo "ℹ️  API Gateway ya apunta a $FUNCTION, nada que cambiar"
           fi
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION:    us-east-1
+
+      - name: Restaurar integración prode-api (solo si se pide explícitamente)
+        if: github.event.inputs.restore_caballito_integration == 'true'
+        run: |
+          set -e
+          REGION="us-east-1"
+          CABALLITO_FUNCTION="prode-api"
+          RESOURCE_ID="qc0bh1"
+          API_ID="t49euho172"
+
+          ACCOUNT_ID=$(aws lambda get-function-configuration \
+            --function-name $CABALLITO_FUNCTION --region $REGION \
+            --query 'FunctionArn' --output text | cut -d: -f5)
+
+          CABALLITO_URI="arn:aws:apigateway:${REGION}:lambda:path/2015-03-31/functions/arn:aws:lambda:${REGION}:${ACCOUNT_ID}:function:${CABALLITO_FUNCTION}/invocations"
+
+          aws apigateway update-integration \
+            --rest-api-id $API_ID --resource-id "$RESOURCE_ID" \
+            --http-method ANY --region $REGION \
+            --patch-operations "[{\"op\":\"replace\",\"path\":\"/uri\",\"value\":\"${CABALLITO_URI}\"}]"
+
+          aws apigateway create-deployment \
+            --rest-api-id $API_ID --stage-name prod --region $REGION
+
+          echo "✅ Restaurado $RESOURCE_ID ANY → prode-api (prodecaballito.com)"
         env:
           AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
