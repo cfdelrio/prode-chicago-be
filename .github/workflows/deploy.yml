@@ -50,15 +50,12 @@ jobs:
 
       - name: Create deployment package
         run: |
-          # El checkout ahora tiene node_modules de producción limpios
-          mkdir -p /tmp/lambda_deploy
-          cp -r . /tmp/lambda_deploy/
-          # Crear zip desde /tmp para que la estructura interna sea lambda_deploy/...
-          cd /tmp
-          zip -r deploy.zip lambda_deploy/ \
-            --exclude "lambda_deploy/.git/*" \
-            --exclude "lambda_deploy/.github/*" \
-            --exclude "lambda_deploy/__tests__/*"
+          # Zip desde el directorio del repo para que handler lambda.handler
+          # encuentre los archivos en la raíz (lambda.js, middleware/, etc.)
+          zip -r /tmp/deploy.zip . \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude "__tests__/*"
 
       - name: Upload package to S3 and deploy Lambda
         run: |
@@ -108,7 +105,7 @@ jobs:
             --source-arn "arn:aws:execute-api:${REGION}:${ACCOUNT_ID}:${API_ID}/*/*" \
             --region $REGION 2>/dev/null && echo "Permiso añadido" || echo "Permiso ya existía (ok)"
 
-          # Recorrer todos los recursos y actualizar integraciones que apunten al lambda viejo
+          # Recorrer todos los recursos y actualizar integraciones que NO apunten a prode-chicago-api
           RESOURCE_IDS=$(aws apigateway get-resources \
             --rest-api-id $API_ID --region $REGION \
             --query 'items[*].id' --output text)
@@ -125,12 +122,17 @@ jobs:
                 --http-method "$METHOD" --region $REGION \
                 --query 'uri' --output text 2>/dev/null || echo "")
 
-              if echo "$CURRENT_URI" | grep -q ":function:prode-api/"; then
+              # Diagnóstico: mostrar URI actual de cada integración
+              echo "  $RESOURCE_ID $METHOD → ${CURRENT_URI:-<sin integración Lambda>}"
+
+              # Actualizar si es integración Lambda y NO apunta ya a prode-chicago-api
+              # Captura tanto :function:prode-api/ como :function:prode-api:alias/invocations
+              if echo "$CURRENT_URI" | grep -q ":function:" && ! echo "$CURRENT_URI" | grep -q ":function:prode-chicago-api"; then
                 aws apigateway update-integration \
                   --rest-api-id $API_ID --resource-id "$RESOURCE_ID" \
                   --http-method "$METHOD" --region $REGION \
                   --patch-operations "[{\"op\":\"replace\",\"path\":\"/uri\",\"value\":\"${NEW_URI}\"}]"
-                echo "  ✓ Actualizado $RESOURCE_ID $METHOD"
+                echo "  ✓ Actualizado $RESOURCE_ID $METHOD → prode-chicago-api"
                 UPDATED=$((UPDATED + 1))
               fi
             done
