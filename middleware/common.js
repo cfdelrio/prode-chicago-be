@@ -27,10 +27,11 @@ const allowedOrigins = [
     'http://localhost:5173',
     'https://d2vjb37mnj30m1.cloudfront.net',
     'https://d16s2xc71j0bqo.cloudfront.net',
-    process.env.FRONTEND_URL || 'https://hr.prodecaballito.com',
+    'https://hr.prodecaballito.com',
     'https://www.hr.prodecaballito.com',
     'https://chicago.prodecaballito.com',
     'https://www.chicago.prodecaballito.com',
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 exports.corsMiddleware = (0, cors_1.default)({
     origin: function (origin, callback) {
