@@ -165,6 +165,16 @@ router.post('/:matchId/result', auth_1.authMiddleware, auth_1.requireAdmin, vali
         }
         const match = matchResult.rows[0];
 
+        // No permitir publicar el resultado de un partido que todavía no empezó:
+        // marcaría el partido como 'finished' y bloquearía los pronósticos de un
+        // partido futuro (pasó en producción por un error de carga).
+        if (new Date() < new Date(match.start_time)) {
+            return res.status(400).json({
+                success: false,
+                error: 'No se puede publicar el resultado de un partido que todavía no comenzó',
+            });
+        }
+
         // Guardar líder anterior antes de recalcular
         const prevLeaderResult = await connection_1.db.query(
             `SELECT p.user_id, u.nombre, u.whatsapp_number, u.whatsapp_consent
