@@ -350,11 +350,22 @@ router.post('/forgot-password', rateLimit_1.authLimiter, async (req, res) => {
             [code, expiresAt, user.id]
         );
 
-        await (0, email_1.sendEmail)({
-            to: email,
-            subject: 'Código para restablecer tu contraseña — PRODE High Rolling',
-            html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:12px;"><h2 style="color:#001A4B;">⚽ PRODE High Rolling</h2><p>Hola <strong>${user.nombre}</strong>,</p><p>Tu código para restablecer la contraseña es:</p><div style="background:#001A4B;color:#FFDF00;font-size:36px;font-weight:bold;text-align:center;padding:20px;border-radius:8px;letter-spacing:8px;margin:20px 0;">${code}</div><p style="color:#666;font-size:13px;">Expira en 15 minutos. Si no lo pediste, ignorá este email.</p></div>`,
-        });
+        try {
+            await (0, email_1.sendEmail)({
+                to: email,
+                subject: 'Código para restablecer tu contraseña — PRODE High Rolling',
+                html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:12px;"><h2 style="color:#001A4B;">⚽ PRODE High Rolling</h2><p>Hola <strong>${user.nombre}</strong>,</p><p>Tu código para restablecer la contraseña es:</p><div style="background:#001A4B;color:#FFDF00;font-size:36px;font-weight:bold;text-align:center;padding:20px;border-radius:8px;letter-spacing:8px;margin:20px 0;">${code}</div><p style="color:#666;font-size:13px;">Expira en 15 minutos. Si no lo pediste, ignorá este email.</p></div>`,
+            });
+        } catch (emailError) {
+            // El envío via Resend falló (dominio no verificado, API caída, etc.).
+            // Devolvemos un error claro en vez de un 500 genérico para que el
+            // usuario sepa que el problema fue el email y pueda reintentar.
+            logger.error('Forgot password — email delivery failed', emailError);
+            return res.status(502).json({
+                success: false,
+                error: 'No pudimos enviar el email con el código. Intentá de nuevo en unos minutos.',
+            });
+        }
 
         res.json({ success: true, message: 'Si el email existe, recibirás un código' });
     } catch (error) {
