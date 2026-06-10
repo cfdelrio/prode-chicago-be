@@ -6,7 +6,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 if (!RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY not configured — email sending disabled');
 }
-const FROM_EMAIL = 'noreply@hr.prodecaballito.com';
+const FROM_EMAIL = 'noreply@prodecaballito.com';
 const sendEmail = async ({ to, subject, html }) => {
     if (!RESEND_API_KEY) {
         console.warn('[email] Skipping email send — RESEND_API_KEY not configured');
